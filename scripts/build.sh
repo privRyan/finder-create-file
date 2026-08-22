@@ -47,7 +47,7 @@ for arch in $ARCHS; do
         "$PROJECT_DIR/Sources/Shared/ExclusiveCreate.c" \
         -o "$BUILD_DIR/ExclusiveCreate-$arch.o"
     /usr/bin/swiftc -O -whole-module-optimization -target "$target" \
-        -framework AppKit -framework Carbon \
+        -framework AppKit \
         "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
         "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
         "$PROJECT_DIR/Sources/App/AppMain.swift" \

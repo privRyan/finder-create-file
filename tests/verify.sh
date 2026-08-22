@@ -37,6 +37,11 @@ extension_archs="$(/usr/bin/lipo -archs "$APP/Contents/PlugIns/FinderCreateFileF
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$extension_archs"
 extension_symbols="$(/usr/bin/nm -m "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
 /usr/bin/grep -q '_NSExtensionMain' <<< "$extension_symbols"
+app_linked_libraries="$(/usr/bin/otool -L "$APP/Contents/MacOS/FinderCreateFile")"
+if /usr/bin/grep -q '/Carbon.framework/' <<< "$app_linked_libraries"; then
+    echo "Main app unexpectedly links Carbon.framework" >&2
+    exit 1
+fi
 for executable in \
     "$APP/Contents/MacOS/FinderCreateFile" \
     "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync"; do
@@ -173,6 +178,28 @@ INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR=
 [[ ! -e "$support_test_dir" ]]
 /usr/bin/find "$trash_test_dir" -name 'FinderCreateFile*.app' -print -quit | /usr/bin/grep -q .
 /usr/bin/find "$trash_test_dir" -name 'FinderCreateFile-Settings-*' -print -quit | /usr/bin/grep -q .
+
+collision_timestamp="20200101-000000"
+collision_trash_dir="$PROJECT_DIR/.build/trash-collision-test"
+collision_support_dir="$PROJECT_DIR/.build/support-collision-test"
+rm -rf "$collision_trash_dir" "$collision_support_dir"
+mkdir -p \
+    "$collision_trash_dir/FinderCreateFile.app" \
+    "$collision_trash_dir/FinderCreateFile-$collision_timestamp.app" \
+    "$collision_trash_dir/FinderCreateFile-$collision_timestamp-2.app" \
+    "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp" \
+    "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-2" \
+    "$collision_support_dir"
+INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
+echo 'collision-app-marker' > "$install_test_dir/FinderCreateFile.app/collision-app-marker"
+echo 'collision-settings-marker' > "$collision_support_dir/collision-settings-marker"
+INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$collision_support_dir" TRASH_DIR="$collision_trash_dir" \
+    TRASH_TIMESTAMP="$collision_timestamp" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null
+[[ -f "$collision_trash_dir/FinderCreateFile-$collision_timestamp-3.app/collision-app-marker" ]]
+[[ -f "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-3/collision-settings-marker" ]]
+[[ ! -e "$collision_trash_dir/FinderCreateFile-$collision_timestamp-2.app/FinderCreateFile.app" ]]
+[[ ! -e "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-2/support-collision-test" ]]
 rm -rf "$install_test_dir"
 
 echo "All verification checks passed."
