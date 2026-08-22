@@ -33,8 +33,11 @@ xlsx_entries="$(/usr/bin/unzip -Z1 "$APP/Contents/Resources/Templates/blank.xlsx
 /usr/bin/grep -qx 'xl/worksheets/sheet1.xml' <<< "$xlsx_entries"
 app_archs="$(/usr/bin/lipo -archs "$APP/Contents/MacOS/FinderCreateFile")"
 extension_archs="$(/usr/bin/lipo -archs "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
+move_helper_archs="$(/usr/bin/lipo -archs "$APP/Contents/Helpers/AtomicInstallMove")"
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$app_archs"
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$extension_archs"
+/usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$move_helper_archs"
+/usr/bin/codesign --verify --strict "$APP/Contents/Helpers/AtomicInstallMove"
 extension_symbols="$(/usr/bin/nm -m "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
 /usr/bin/grep -q '_NSExtensionMain' <<< "$extension_symbols"
 app_linked_libraries="$(/usr/bin/otool -L "$APP/Contents/MacOS/FinderCreateFile")"
@@ -148,7 +151,7 @@ fi
 collision_install_dir="$PROJECT_DIR/.build/install-target-race-test"
 rm -rf "$collision_install_dir"
 mkdir -p "$collision_install_dir"
-if INSTALL_DIR="$collision_install_dir" BEFORE_FINAL_MOVE_TEST_HOOK=create-collision \
+if INSTALL_DIR="$collision_install_dir" BEFORE_ATOMIC_MOVE_TEST_HOOK=create-collision \
     LSREGISTER=/usr/bin/true PLUGIN_KIT=/usr/bin/true PROCESS_KILLER=/usr/bin/true \
     FINDER_RESTARTER=/usr/bin/true "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Installer accepted a destination-path collision" >&2

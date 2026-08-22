@@ -37,6 +37,11 @@ bundle_fingerprint() {
 
 source_fingerprint="$(bundle_fingerprint "$SOURCE_APP")"
 [[ -n "$source_fingerprint" ]] || { echo "Could not fingerprint the source app." >&2; exit 65; }
+ATOMIC_MOVER="$SOURCE_APP/Contents/Helpers/AtomicInstallMove"
+if [[ ! -x "$ATOMIC_MOVER" ]]; then
+    echo "Atomic install helper is missing or not executable." >&2
+    exit 65
+fi
 
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Applications}"
 mkdir -p "$INSTALL_DIR"
@@ -130,16 +135,16 @@ else
         *) echo "Invalid AFTER_COPY_SIGNAL test hook." >&2; false ;;
     esac
     [[ "${LOCK_HOLD_SECONDS:-0}" == "0" ]] || /bin/sleep "$LOCK_HOLD_SECONDS"
-    case "${BEFORE_FINAL_MOVE_TEST_HOOK:-none}" in
-        none) ;;
-        create-collision) mkdir "$DESTINATION"; /bin/echo external > "$DESTINATION/external-evidence" ;;
-        *) echo "Invalid BEFORE_FINAL_MOVE_TEST_HOOK." >&2; false ;;
-    esac
     if [[ -e "$DESTINATION" ]]; then
         echo "The destination appeared during installation; it was preserved and registration was not attempted." >&2
         false
     fi
-    /bin/mv -n "$STAGED_APP" "$DESTINATION"
+    case "${BEFORE_ATOMIC_MOVE_TEST_HOOK:-none}" in
+        none) ;;
+        create-collision) mkdir "$DESTINATION"; /bin/echo external > "$DESTINATION/external-evidence" ;;
+        *) echo "Invalid BEFORE_ATOMIC_MOVE_TEST_HOOK." >&2; false ;;
+    esac
+    "$ATOMIC_MOVER" "$STAGED_APP" "$DESTINATION"
     destination_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DESTINATION/Contents/Info.plist" 2>/dev/null || true)"
     if [[ -e "$STAGED_APP" || "$destination_id" != "$source_id" ]] || \
        ! /usr/bin/codesign --verify --deep --strict "$DESTINATION" >/dev/null 2>&1 || \
