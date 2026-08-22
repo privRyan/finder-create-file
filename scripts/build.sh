@@ -26,6 +26,7 @@ rm -rf "$BUILD_DIR" "$APP"
 mkdir -p \
     "$BUILD_DIR/icon.iconset" \
     "$APP/Contents/MacOS" \
+    "$APP/Contents/Helpers" \
     "$APP/Contents/Resources/Templates" \
     "$APPEX/Contents/MacOS"
 
@@ -41,28 +42,36 @@ cp "$PROJECT_DIR/Config/ExtensionInfo.plist" "$APPEX/Contents/Info.plist"
 
 app_binaries=()
 extension_binaries=()
+move_binaries=()
 for arch in $ARCHS; do
     target="$arch-apple-macos13.0"
     /usr/bin/clang -target "$target" -mmacosx-version-min=13.0 -c \
         "$PROJECT_DIR/Sources/Shared/ExclusiveCreate.c" \
         -o "$BUILD_DIR/ExclusiveCreate-$arch.o"
     /usr/bin/swiftc -O -whole-module-optimization -target "$target" \
-        -framework AppKit -framework Carbon \
+        -framework AppKit \
         "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
-        "$PROJECT_DIR/Sources/App/FileTypeCatalog.swift" \
+        "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
         "$PROJECT_DIR/Sources/App/AppMain.swift" \
         "$BUILD_DIR/ExclusiveCreate-$arch.o" \
         -o "$BUILD_DIR/FinderCreateFile-$arch"
     app_binaries+=("$BUILD_DIR/FinderCreateFile-$arch")
-    /usr/bin/swiftc -O -whole-module-optimization -target "$target" \
+    /usr/bin/clang -target "$target" -mmacosx-version-min=13.0 \
+        "$PROJECT_DIR/Sources/Shared/ExclusiveRename.c" \
+        -o "$BUILD_DIR/AtomicInstallMove-$arch"
+    move_binaries+=("$BUILD_DIR/AtomicInstallMove-$arch")
+    /usr/bin/swiftc -O -whole-module-optimization -parse-as-library -target "$target" \
         -module-name FinderCreateFileFinderSync \
         -framework AppKit -framework FinderSync \
+        "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
         "$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift" \
+        -Xlinker -e -Xlinker _NSExtensionMain \
         -o "$BUILD_DIR/FinderCreateFileFinderSync-$arch"
     extension_binaries+=("$BUILD_DIR/FinderCreateFileFinderSync-$arch")
 done
 /usr/bin/lipo -create "${app_binaries[@]}" -output "$APP/Contents/MacOS/FinderCreateFile"
 /usr/bin/lipo -create "${extension_binaries[@]}" -output "$APPEX/Contents/MacOS/FinderCreateFileFinderSync"
+/usr/bin/lipo -create "${move_binaries[@]}" -output "$APP/Contents/Helpers/AtomicInstallMove"
 
 /usr/bin/swiftc -O -target "$(uname -m)-apple-macos13.0" -framework AppKit \
     "$PROJECT_DIR/Tools/RenderAppIcon.swift" \
@@ -105,6 +114,7 @@ sign_args=(--force --sign "$SIGN_IDENTITY")
 if [[ "$SIGN_IDENTITY" != "-" ]]; then
     sign_args+=(--timestamp --options runtime)
 fi
+/usr/bin/codesign "${sign_args[@]}" "$APP/Contents/Helpers/AtomicInstallMove"
 /usr/bin/codesign "${sign_args[@]}" --entitlements "$PROJECT_DIR/Config/Extension.entitlements" "$APPEX"
 /usr/bin/codesign "${sign_args[@]}" "$APP"
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP"

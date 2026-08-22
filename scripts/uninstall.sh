@@ -2,7 +2,9 @@
 set -euo pipefail
 
 DESTINATION="${INSTALL_DIR:-$HOME/Applications}/FinderCreateFile.app"
-SUPPORT_DIRECTORY="${SUPPORT_DIRECTORY:-$HOME/Library/Application Support/FinderCreateFile}"
+EXTENSION_ID_DEFAULT="io.github.privRyan.FinderCreateFile.FinderSync"
+SUPPORT_DIRECTORY_OVERRIDE="${SUPPORT_DIRECTORY:-}"
+extension_id="$EXTENSION_ID_DEFAULT"
 PURGE=0
 ASSUME_YES=0
 for argument in "$@"; do
@@ -21,6 +23,11 @@ if [[ "$ASSUME_YES" != "1" ]]; then
 fi
 
 trash_directory="${TRASH_DIR:-$HOME/.Trash}"
+trash_timestamp="${TRASH_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
+if [[ ! "$trash_timestamp" =~ ^[0-9]{8}-[0-9]{6}$ ]]; then
+    echo "Invalid TRASH_TIMESTAMP: $trash_timestamp" >&2
+    exit 64
+fi
 mkdir -p "$trash_directory"
 
 if [[ -d "$DESTINATION" ]]; then
@@ -46,7 +53,13 @@ if [[ -d "$DESTINATION" ]]; then
     fi
     trash_target="$trash_directory/FinderCreateFile.app"
     if [[ -e "$trash_target" ]]; then
-        trash_target="$trash_directory/FinderCreateFile-$(date +%Y%m%d-%H%M%S).app"
+        trash_base="$trash_directory/FinderCreateFile-$trash_timestamp"
+        trash_target="$trash_base.app"
+        trash_index=2
+        while [[ -e "$trash_target" ]]; do
+            trash_target="$trash_base-$trash_index.app"
+            ((trash_index += 1))
+        done
     fi
     /bin/mv "$DESTINATION" "$trash_target"
     [[ "${SKIP_REGISTRATION:-0}" == "1" ]] || /usr/bin/killall Finder 2>/dev/null || true
@@ -55,10 +68,25 @@ else
     echo "FinderCreateFile is not installed at $DESTINATION"
 fi
 
-if [[ "$PURGE" == "1" && -d "$SUPPORT_DIRECTORY" ]]; then
-    support_target="$trash_directory/FinderCreateFile-Settings-$(date +%Y%m%d-%H%M%S)"
-    /bin/mv "$SUPPORT_DIRECTORY" "$support_target"
+if [[ -n "$SUPPORT_DIRECTORY_OVERRIDE" ]]; then
+    support_directory="$SUPPORT_DIRECTORY_OVERRIDE"
+else
+    support_directory="$HOME/Library/Containers/$extension_id"
+fi
+
+if [[ "$PURGE" == "1" && -d "$support_directory" ]]; then
+    if [[ -z "$SUPPORT_DIRECTORY_OVERRIDE" ]]; then
+        /usr/bin/defaults delete "$extension_id" 2>/dev/null || true
+    fi
+    support_base="$trash_directory/FinderCreateFile-Settings-$trash_timestamp"
+    support_target="$support_base"
+    support_index=2
+    while [[ -e "$support_target" ]]; do
+        support_target="$support_base-$support_index"
+        ((support_index += 1))
+    done
+    /bin/mv "$support_directory" "$support_target"
     echo "Moved settings to Trash: $support_target"
-elif [[ -d "$SUPPORT_DIRECTORY" ]]; then
-    echo "Preserved settings: $SUPPORT_DIRECTORY (use --purge to remove them)"
+elif [[ -d "$support_directory" ]]; then
+    echo "Preserved settings: $support_directory (use --purge to remove them)"
 fi

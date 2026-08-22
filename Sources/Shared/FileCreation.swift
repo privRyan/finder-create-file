@@ -26,8 +26,7 @@ enum FileCreationError: LocalizedError {
 
 enum AppRequest: Equatable {
     case createFixed(type: String, path: String)
-    case createAdditional(path: String)
-    case manageTypes
+    case createAdditional(typeID: String, path: String)
 }
 
 enum AppRequestParser {
@@ -43,11 +42,11 @@ enum AppRequestParser {
                 return nil
             }
             return .createFixed(type: type, path: path)
-        case "custom":
-            guard let path = components.queryItems?.first(where: { $0.name == "path" })?.value else { return nil }
-            return .createAdditional(path: path)
-        case "manage":
-            return .manageTypes
+        case "additional":
+            guard let typeID = components.queryItems?.first(where: { $0.name == "typeID" })?.value,
+                  FileTypeCatalog.type(id: typeID) != nil,
+                  let path = components.queryItems?.first(where: { $0.name == "path" })?.value else { return nil }
+            return .createAdditional(typeID: typeID, path: path)
         default:
             return nil
         }

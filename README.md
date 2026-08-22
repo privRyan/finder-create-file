@@ -11,7 +11,7 @@ Finder Create File adds a **New File** submenu to the background context menu in
 - A file-type icon in both the menu and filename dialog
 - Automatic extension handling and numbered names for conflicts
 - Exclusive file creation: existing files are never overwritten, including concurrent requests
-- Word/Excel templates bundled inside the app; only the versioned extra-type selection is stored under Application Support
+- Word/Excel templates bundled inside the app; the extension stores only a versioned list of enabled built-in type IDs
 - Universal 2 binaries for Apple silicon and Intel Macs
 - No network access or analytics
 
@@ -25,7 +25,7 @@ This repository does **not** distribute a Developer ID-signed or notarized execu
 
 The Finder Sync extension monitors `/` only so Finder offers the context menu everywhere. The app accepts creation requests only for existing directories resolved inside the current user's home directory or `/Volumes`, shows the resolved destination before creation, and uses exclusive filesystem creation to prevent overwrites.
 
-Ad-hoc signed sandboxed extensions cannot reliably use an App Group: a [local probe](docs/APP-GROUP-PROBE.md) failed during sandbox initialization because the ad-hoc process had no valid Team ID/code identity. Therefore the extension does not pretend to read dynamic settings. The reliable fallback keeps the four defaults directly in Finder, then opens the containing app for **更多文件类型…** (type selection) or **管理文件类型…** (allowlist checkboxes). A future Developer ID/App Group release may place enabled types directly in the submenu.
+Ad-hoc signed sandboxed extensions cannot reliably use an App Group: a [local probe](docs/APP-GROUP-PROBE.md) failed during sandbox initialization because the ad-hoc process had no valid Team ID/code identity. No cross-process settings store is needed here: the Finder extension owns the built-in-type selection in its standard sandboxed preferences and renders enabled entries itself. It sends only a fixed catalog ID and destination to the containing app, which independently validates both before showing the creation dialog.
 
 ## Build, verify, and install
 
@@ -36,7 +36,9 @@ make test
 make install
 ```
 
-The build creates `dist/FinderCreateFile.app` locally. Installation copies it to `~/Applications`, registers and enables the Finder extension, then restarts Finder. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
+The build creates `dist/FinderCreateFile.app` locally. Installation first copies and verifies the app in a unique staging directory beside the destination, then places it in `~/Applications`, registers and enables the Finder extension, and restarts Finder. A simple atomic lock rejects concurrent installers. Catchable signals clean staging and the lock; if registration fails after placement, the complete app is retained and rerunning `make install` retries registration without copying it again. A stale lock is never guessed away—inspect `.FinderCreateFile.install.lock`, then remove that exact directory manually if no installer is running. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
+
+Automatic in-place upgrades are intentionally unsupported: the installer never moves, backs up, deletes, or overwrites an existing app. If the existing app has the same bundle ID, valid signature, and complete bundle fingerprint (all architectures and the embedded extension included), installation only retries registration. If it is a different build, run `make uninstall` first (the old app is moved to Trash and remains recoverable), then run `make install`.
 
 The menu appears when right-clicking the background of an open Finder folder:
 
@@ -47,7 +49,9 @@ The menu appears when right-clicking the background of an open Finder folder:
 ├── Word 文档 (.docx)
 ├── Excel 工作簿 (.xlsx)
 ├── ─────────────
-├── 更多文件类型…
+├── JSON 文件 (.json)      # when enabled
+├── XML 文件 (.xml)        # when enabled
+├── ─────────────
 └── 管理文件类型…
 ```
 
@@ -80,7 +84,7 @@ The application icon is drawn from original vector paths at build time. Runtime 
 
 ## Security and limitations
 
-See [SECURITY.md](SECURITY.md). Settings are versioned in `~/Library/Application Support/FinderCreateFile/settings.json`; unknown, duplicate, or out-of-version IDs are ignored, and catalog ordering always wins. Finder Sync is the macOS extension mechanism that can add a true background context menu; macOS may require the user to enable it manually. Network shares mounted outside `/Volumes` are intentionally rejected. UI text is currently Chinese.
+See [SECURITY.md](SECURITY.md). The extension stores its versioned selection in the standard preferences for `io.github.privRyan.FinderCreateFile.FinderSync`; only fixed catalog IDs are stored. Unknown, duplicate, damaged, or out-of-version values are ignored, and catalog ordering always wins. The four defaults always remain consecutive; enabled extras appear after the first separator, and the management command stays last. Finder Sync is the macOS extension mechanism that can add a true background context menu; macOS may require the user to enable it manually. Network shares mounted outside `/Volumes` are intentionally rejected. UI text is currently Chinese.
 
 ## License
 
