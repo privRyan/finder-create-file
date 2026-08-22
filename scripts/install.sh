@@ -25,9 +25,16 @@ LSREGISTER="${LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Fram
 PLUGIN_KIT="${PLUGIN_KIT:-/usr/bin/pluginkit}"
 PROCESS_KILLER="${PROCESS_KILLER:-/usr/bin/pkill}"
 FINDER_RESTARTER="${FINDER_RESTARTER:-/usr/bin/killall}"
+ROLLBACK_TMPDIR="${ROLLBACK_TMPDIR:-${TMPDIR:-/tmp}}"
+if [[ ! -d "$ROLLBACK_TMPDIR" || ! -w "$ROLLBACK_TMPDIR" ]]; then
+    echo "Rollback temporary directory is not writable: $ROLLBACK_TMPDIR" >&2
+    exit 73
+fi
+ROLLBACK_TMPDIR="$(cd "$ROLLBACK_TMPDIR" && pwd -P)"
 
 mkdir -p "$INSTALL_DIR"
 backup=""
+rollback_directory=""
 registration_started=0
 previous_extension_enabled=0
 rollback() {
@@ -41,6 +48,10 @@ rollback() {
     if [[ -n "$backup" && -d "$backup" ]]; then
         [[ ! -e "$DESTINATION" ]] || /bin/rm -rf "$DESTINATION"
         /bin/mv "$backup" "$DESTINATION"
+        if [[ -n "$rollback_directory" && -d "$rollback_directory" ]]; then
+            rmdir "$rollback_directory"
+            rollback_directory=""
+        fi
         if [[ "$registration_started" == "1" ]]; then
             "$LSREGISTER" -f "$DESTINATION" 2>/dev/null || true
             "$PLUGIN_KIT" -a "$DESTINATION/Contents/PlugIns/FinderCreateFileFinderSync.appex" 2>/dev/null || true
@@ -73,7 +84,8 @@ if [[ -e "$DESTINATION" ]]; then
        "$PLUGIN_KIT" -m -v -i "$extension_id" 2>/dev/null | /usr/bin/grep -q '^+'; then
         previous_extension_enabled=1
     fi
-    backup="$INSTALL_DIR/.FinderCreateFile.backup.$$"
+    rollback_directory="$(/usr/bin/mktemp -d "$ROLLBACK_TMPDIR/FinderCreateFile-install.XXXXXX")"
+    backup="$rollback_directory/FinderCreateFile.app"
     /bin/mv "$DESTINATION" "$backup"
 fi
 if [[ "${SKIP_REGISTRATION:-0}" != "1" ]]; then
@@ -92,18 +104,12 @@ else
     "$FINDER_RESTARTER" Finder 2>/dev/null || true
 fi
 
-if [[ -n "$backup" && -d "$backup" ]]; then
-    backup_directory="${BACKUP_DIR:-$HOME/Library/Application Support/FinderCreateFile/Backups/updates}"
-    mkdir -p "$backup_directory"
-    backup_base="$backup_directory/FinderCreateFile-previous-$(date +%Y%m%d-%H%M%S)"
-    backup_target="$backup_base.app"
-    backup_index=2
-    while [[ -e "$backup_target" ]]; do
-        backup_target="$backup_base-$backup_index.app"
-        ((backup_index += 1))
-    done
-    /bin/mv "$backup" "$backup_target"
-    echo "Previous version preserved at: $backup_target"
+if [[ -n "$rollback_directory" && -d "$rollback_directory" ]]; then
+    case "$rollback_directory" in
+        "$ROLLBACK_TMPDIR"/FinderCreateFile-install.*) /bin/rm -rf "$rollback_directory" ;;
+        *) echo "Refusing to clean unexpected rollback path: $rollback_directory" >&2; exit 73 ;;
+    esac
+    rollback_directory=""
 fi
 trap - ERR
 

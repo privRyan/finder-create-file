@@ -36,7 +36,7 @@ make test
 make install
 ```
 
-构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达；被替换的版本保存在 `~/Library/Application Support/FinderCreateFile/Backups/updates/`。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
+构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。升级时，旧 App 只会暂存在专用回滚临时目录：成功后自动删除；失败时恢复旧 App，随后清理临时目录。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
 
 在访达已打开文件夹的空白处右键：
 

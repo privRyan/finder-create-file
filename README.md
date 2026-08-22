@@ -36,7 +36,7 @@ make test
 make install
 ```
 
-The build creates `dist/FinderCreateFile.app` locally. Installation copies it to `~/Applications`, registers and enables the Finder extension, then restarts Finder. Replaced versions are preserved under `~/Library/Application Support/FinderCreateFile/Backups/updates/`. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
+The build creates `dist/FinderCreateFile.app` locally. Installation copies it to `~/Applications`, registers and enables the Finder extension, then restarts Finder. During an upgrade, the previous app is held only in a dedicated temporary rollback directory: success removes it automatically, while failure restores it and then removes the temporary directory. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
 
 The menu appears when right-clicking the background of an open Finder folder:
 

@@ -135,33 +135,33 @@ existing_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$install_
 rm -rf "$install_test_dir/FinderCreateFile.app"
 /usr/bin/ditto "$APP" "$install_test_dir/FinderCreateFile.app"
 echo 'previous-version-marker' > "$install_test_dir/FinderCreateFile.app/previous-version-marker"
-if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/false PROCESS_KILLER=/usr/bin/true FINDER_RESTARTER=/usr/bin/true \
+rollback_test_root="$PROJECT_DIR/.build/install-rollback-temp"
+rm -rf "$rollback_test_root"
+mkdir -p "$rollback_test_root"
+if INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" LSREGISTER=/usr/bin/false \
+    PROCESS_KILLER=/usr/bin/true FINDER_RESTARTER=/usr/bin/true \
     "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Installer did not surface a registration failure" >&2
     exit 1
 fi
 [[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
-if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/true PLUGIN_KIT=/usr/bin/false PROCESS_KILLER=/usr/bin/true \
+[[ -z "$(/usr/bin/find "$rollback_test_root" -mindepth 1 -print -quit)" ]]
+if INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" LSREGISTER=/usr/bin/true \
+    PLUGIN_KIT=/usr/bin/false PROCESS_KILLER=/usr/bin/true \
     FINDER_RESTARTER=/usr/bin/true \
     "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Installer did not surface a partial registration failure" >&2
     exit 1
 fi
 [[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
+[[ -z "$(/usr/bin/find "$rollback_test_root" -mindepth 1 -print -quit)" ]]
 
-backup_test_dir="$PROJECT_DIR/.build/backup-test"
-INSTALL_DIR="$install_test_dir" BACKUP_DIR="$backup_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP"
+echo 'successful-upgrade-old-marker' > "$install_test_dir/FinderCreateFile.app/successful-upgrade-old-marker"
+INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP"
 /usr/bin/codesign --verify --deep --strict "$install_test_dir/FinderCreateFile.app"
-/usr/bin/find "$backup_test_dir" -name previous-version-marker -print -quit | /usr/bin/grep -q .
-
-default_backup_home="$PROJECT_DIR/.build/default-backup-home"
-rm -rf "$default_backup_home"
-mkdir -p "$default_backup_home"
-echo 'default-backup-marker' > "$install_test_dir/FinderCreateFile.app/default-backup-marker"
-HOME="$default_backup_home" INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 \
-    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
-/usr/bin/find "$default_backup_home/Library/Application Support/FinderCreateFile/Backups/updates" \
-    -name default-backup-marker -print -quit | /usr/bin/grep -q .
+[[ ! -e "$install_test_dir/FinderCreateFile.app/successful-upgrade-old-marker" ]]
+[[ -z "$(/usr/bin/find "$rollback_test_root" -mindepth 1 -print -quit)" ]]
 
 support_test_dir="$PROJECT_DIR/.build/support-test"
 trash_test_dir="$PROJECT_DIR/.build/trash-test"
