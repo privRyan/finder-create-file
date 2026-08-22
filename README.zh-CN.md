@@ -21,7 +21,7 @@ Finder Create File 会在 macOS 访达文件夹空白处的右键菜单中加入
 - Apple Command Line Tools（运行 `xcode-select --install` 安装）
 - macOS 自带的 Bash、Swift 编译器和系统工具
 
-本仓库**不分发**经过 Developer ID 签名和 Apple 公证的可执行文件，请审核源码后在自己的 Mac 上构建。默认使用临时签名，适合本机安装，但它不等同于 Apple 公证，也不是绕过 Gatekeeper 的“一键安装包”。
+本仓库**不分发**经过 Developer ID 签名和 Apple 公证的可执行文件，请审核源码后在自己的 Mac 上构建。当前源码安装默认放入 `~/Applications` 并使用临时签名；它不是成熟、已公证、可直接拖入 `/Applications` 的 DMG。
 
 Finder Sync 扩展监听 `/`，只是为了让访达在所有位置提供右键菜单。主程序只接受已规范化且真实存在的用户目录或 `/Volumes` 内目录；创建前会显示最终目标路径；底层用排他创建保证不覆盖文件。
 
@@ -48,10 +48,8 @@ make install
 ├── Markdown 文件 (.md)
 ├── Word 文档 (.docx)
 ├── Excel 工作簿 (.xlsx)
-├── ─────────────
 ├── JSON 文件 (.json)      # 勾选后显示
 ├── XML 文件 (.xml)        # 勾选后显示
-├── ─────────────
 └── 管理文件类型…
 ```
 
@@ -74,7 +72,7 @@ VERSION=1.1.0 BUILD_NUMBER=2 BUNDLE_ID_PREFIX=io.github.example make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 
-即使使用 Developer ID，公开分发二进制前仍须完成 Apple 公证。本项目不会把临时签名描述为 Gatekeeper 认可的正式发行签名。
+正式拖入 `/Applications` 的发行体验需要 Developer ID 签名和 Apple 公证。即使使用 Developer ID，公开分发二进制前仍须完成 Apple 公证。本项目不会把临时签名描述为 Gatekeeper 认可的正式发行签名。
 
 ## 模板来源
 
@@ -84,7 +82,7 @@ App 图标由项目中的原创矢量路径在构建时绘制。运行时菜单�
 
 ## 安全与限制
 
-详见 [SECURITY.md](SECURITY.md)。Finder 扩展把带版本号的选择保存在 `io.github.privRyan.FinderCreateFile.FinderSync` 标准偏好中，只记录固定类型 ID；未知、重复、损坏或版本不兼容的值都会被忽略，并始终按内置目录顺序显示。四个默认项始终连续；已启用额外项位于第一条分隔线后，“管理文件类型…”始终在最底部。Finder Sync 是 macOS 实现真正文件夹空白处右键菜单的扩展机制，因此系统可能要求用户手动启用。挂载在 `/Volumes` 以外的网络位置会被主动拒绝。目前界面文字为中文。
+详见 [SECURITY.md](SECURITY.md)。Finder 扩展把带版本号的选择保存在 `io.github.privRyan.FinderCreateFile.FinderSync` 标准偏好中，只记录固定类型 ID；未知、重复、损坏或版本不兼容的值都会被忽略，并始终按内置目录顺序显示。全部菜单项连续排列，四个默认项位于最前，“管理文件类型…”始终在最底部。沙盒扩展只根据编译期固定的 `FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex` 层级定位主程序，并拒绝非规范化路径或符号链接；它不会越过扩展沙盒读取父 App 文件来验证。Finder Sync 是 macOS 实现真正文件夹空白处右键菜单的扩展机制，因此系统可能要求用户手动启用。挂载在 `/Volumes` 以外的网络位置会被主动拒绝。目前界面文字为中文。
 
 ## 许可证
 
