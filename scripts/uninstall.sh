@@ -2,7 +2,9 @@
 set -euo pipefail
 
 DESTINATION="${INSTALL_DIR:-$HOME/Applications}/FinderCreateFile.app"
-SUPPORT_DIRECTORY="${SUPPORT_DIRECTORY:-$HOME/Library/Application Support/FinderCreateFile}"
+EXTENSION_ID_DEFAULT="io.github.privRyan.FinderCreateFile.FinderSync"
+SUPPORT_DIRECTORY_OVERRIDE="${SUPPORT_DIRECTORY:-}"
+extension_id="$EXTENSION_ID_DEFAULT"
 PURGE=0
 ASSUME_YES=0
 for argument in "$@"; do
@@ -55,10 +57,19 @@ else
     echo "FinderCreateFile is not installed at $DESTINATION"
 fi
 
-if [[ "$PURGE" == "1" && -d "$SUPPORT_DIRECTORY" ]]; then
+if [[ -n "$SUPPORT_DIRECTORY_OVERRIDE" ]]; then
+    support_directory="$SUPPORT_DIRECTORY_OVERRIDE"
+else
+    support_directory="$HOME/Library/Containers/$extension_id"
+fi
+
+if [[ "$PURGE" == "1" && -d "$support_directory" ]]; then
+    if [[ -z "$SUPPORT_DIRECTORY_OVERRIDE" ]]; then
+        /usr/bin/defaults delete "$extension_id" 2>/dev/null || true
+    fi
     support_target="$trash_directory/FinderCreateFile-Settings-$(date +%Y%m%d-%H%M%S)"
-    /bin/mv "$SUPPORT_DIRECTORY" "$support_target"
+    /bin/mv "$support_directory" "$support_target"
     echo "Moved settings to Trash: $support_target"
-elif [[ -d "$SUPPORT_DIRECTORY" ]]; then
-    echo "Preserved settings: $SUPPORT_DIRECTORY (use --purge to remove them)"
+elif [[ -d "$support_directory" ]]; then
+    echo "Preserved settings: $support_directory (use --purge to remove them)"
 fi

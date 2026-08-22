@@ -1,5 +1,4 @@
 import AppKit
-import Carbon
 
 private struct FileConfiguration {
     let title: String
@@ -10,37 +9,23 @@ private struct FileConfiguration {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationWillFinishLaunching(_ notification: Notification) {
-        NSAppleEventManager.shared().setEventHandler(
-            self,
-            andSelector: #selector(handleURL(event:reply:)),
-            forEventClass: AEEventClass(kInternetEventClass),
-            andEventID: AEEventID(kAEGetURL)
-        )
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls { handle(url.absoluteString) }
     }
 
-    @objc private func handleURL(event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
-        guard
-            let value = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
-            let request = AppRequestParser.parse(value)
-        else { return }
+    private func handle(_ value: String) {
+        guard let request = AppRequestParser.parse(value) else { return }
 
         NSApp.activate(ignoringOtherApps: true)
-        if request == .manageTypes {
-            FileTypeSettingsController().run()
-            return
-        }
-
         do {
             switch request {
             case .createFixed(let type, let path):
                 let targetDirectory = try FileCreator.normalizedTargetDirectory(path)
                 createFile(type: type, directory: targetDirectory)
-            case .createAdditional(let path):
+            case .createAdditional(let typeID, let path):
                 let targetDirectory = try FileCreator.normalizedTargetDirectory(path)
-                chooseAdditionalType(directory: targetDirectory)
-            case .manageTypes:
-                break
+                guard let type = FileTypeCatalog.type(id: typeID) else { return }
+                createAdditionalFile(type, directory: targetDirectory)
             }
         } catch {
             showError(error.localizedDescription)
@@ -99,30 +84,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func chooseAdditionalType(directory: URL) {
-        let values = FileTypeSettingsStore.shared.enabledTypes()
-        guard !values.isEmpty else {
-            let alert = NSAlert()
-            alert.messageText = "还没有启用额外文件类型"
-            alert.informativeText = "请先从内置的受支持类型中勾选需要的项目。"
-            alert.addButton(withTitle: "管理文件类型")
-            alert.addButton(withTitle: "取消")
-            if alert.runModal() == .alertFirstButtonReturn { FileTypeSettingsController().run() }
-            return
-        }
-
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 340, height: 26))
-        popup.addItems(withTitles: values.map { "\($0.displayName) (.\($0.fileExtension))" })
-        let selector = NSAlert()
-        selector.messageText = "新建更多类型的文件"
-        selector.informativeText = "创建位置：\(directory.path)"
-        selector.accessoryView = popup
-        selector.addButton(withTitle: "下一步")
-        selector.addButton(withTitle: "取消")
-        guard selector.runModal() == .alertFirstButtonReturn, popup.indexOfSelectedItem >= 0 else { return }
-        createAdditionalFile(values[popup.indexOfSelectedItem], directory: directory)
-    }
-
     private func createAdditionalFile(_ value: BuiltInFileType, directory: URL) {
         guard FileTypeCatalog.type(id: value.id)?.fileExtension == value.fileExtension else { return }
         let input = NSTextField(string: value.defaultName)
@@ -163,9 +124,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct FinderCreateFileApplication {
+    private static let delegate = AppDelegate()
+
     static func main() {
         let application = NSApplication.shared
-        let delegate = AppDelegate()
         application.delegate = delegate
         application.setActivationPolicy(.accessory)
         application.run()

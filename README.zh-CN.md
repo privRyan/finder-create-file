@@ -11,7 +11,7 @@ Finder Create File 会在 macOS 访达文件夹空白处的右键菜单中加入
 - 菜单和文件名输入窗口均显示对应的文件类型图标
 - 自动补充扩展名；同名时自动追加数字
 - 使用排他方式创建文件，并发请求也绝不覆盖已有文件
-- Word/Excel 模板内嵌在 App 资源中；Application Support 只保存带版本号的额外类型选择
+- Word/Excel 模板内嵌在 App 资源中；扩展只保存带版本号的内置类型 ID 列表
 - 同时支持 Apple 芯片和 Intel Mac 的 Universal 2 构建
 - 不联网、无统计分析
 
@@ -25,7 +25,7 @@ Finder Create File 会在 macOS 访达文件夹空白处的右键菜单中加入
 
 Finder Sync 扩展监听 `/`，只是为了让访达在所有位置提供右键菜单。主程序只接受已规范化且真实存在的用户目录或 `/Volumes` 内目录；创建前会显示最终目标路径；底层用排他创建保证不覆盖文件。
 
-临时签名的沙盒扩展无法可靠使用 App Group：[本机最小实验](docs/APP-GROUP-PROBE.md)在沙盒初始化时失败，因为临时签名没有有效 Team ID/代码身份。因此项目不伪装成“扩展已直接读取动态设置”。可靠降级方案是：四个默认项直接留在访达中；“更多文件类型…”由主程序显示已启用类型选择器；“管理文件类型…”由主程序显示白名单复选框。将来只有建立 Developer ID + App Group 正式签名流程后，才考虑把勾选项直接展开到子菜单。
+临时签名的沙盒扩展无法可靠使用 App Group：[本机最小实验](docs/APP-GROUP-PROBE.md)在沙盒初始化时失败，因为临时签名没有有效 Team ID/代码身份。本项目不需要跨进程共享设置：Finder 扩展在自己的标准沙盒偏好中保存内置类型选择，并自行把已启用项展开到菜单。扩展只向主程序传固定类型 ID 和目标路径，主程序会再次校验两者，再显示创建窗口。
 
 ## 构建、验证和安装
 
@@ -36,7 +36,7 @@ make test
 make install
 ```
 
-构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
+构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达；被替换的版本保存在 `~/Library/Application Support/FinderCreateFile/Backups/updates/`。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
 
 在访达已打开文件夹的空白处右键：
 
@@ -47,7 +47,9 @@ make install
 ├── Word 文档 (.docx)
 ├── Excel 工作簿 (.xlsx)
 ├── ─────────────
-├── 更多文件类型…
+├── JSON 文件 (.json)      # 勾选后显示
+├── XML 文件 (.xml)        # 勾选后显示
+├── ─────────────
 └── 管理文件类型…
 ```
 
@@ -80,7 +82,7 @@ App 图标由项目中的原创矢量路径在构建时绘制。运行时菜单�
 
 ## 安全与限制
 
-详见 [SECURITY.md](SECURITY.md)。设置保存在 `~/Library/Application Support/FinderCreateFile/settings.json`，包含配置版本；未知 ID、重复 ID 和不兼容版本均会被忽略，并始终按内置目录顺序显示。Finder Sync 是 macOS 实现真正文件夹空白处右键菜单的扩展机制，因此系统可能要求用户手动启用。挂载在 `/Volumes` 以外的网络位置会被主动拒绝。目前界面文字为中文。
+详见 [SECURITY.md](SECURITY.md)。Finder 扩展把带版本号的选择保存在 `io.github.privRyan.FinderCreateFile.FinderSync` 标准偏好中，只记录固定类型 ID；未知、重复、损坏或版本不兼容的值都会被忽略，并始终按内置目录顺序显示。四个默认项始终连续；已启用额外项位于第一条分隔线后，“管理文件类型…”始终在最底部。Finder Sync 是 macOS 实现真正文件夹空白处右键菜单的扩展机制，因此系统可能要求用户手动启用。挂载在 `/Volumes` 以外的网络位置会被主动拒绝。目前界面文字为中文。
 
 ## 许可证
 

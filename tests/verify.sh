@@ -35,6 +35,8 @@ app_archs="$(/usr/bin/lipo -archs "$APP/Contents/MacOS/FinderCreateFile")"
 extension_archs="$(/usr/bin/lipo -archs "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$app_archs"
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$extension_archs"
+/usr/bin/nm -m "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync" \
+    | /usr/bin/grep -q '_NSExtensionMain'
 for executable in \
     "$APP/Contents/MacOS/FinderCreateFile" \
     "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync"; do
@@ -46,20 +48,32 @@ if /usr/bin/grep -R -n '/Users/' "$PROJECT_DIR/Sources" "$PROJECT_DIR/Config" "$
     echo "Absolute user path found" >&2
     exit 1
 fi
-if /usr/bin/grep -q 'separatorItem' "$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift"; then
-    echo "Unexpected menu separator found" >&2
-    exit 1
-fi
 for type in txt md docx xlsx; do
     /usr/bin/grep -q "create(type: \"$type\")" "$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift"
 done
 /usr/bin/grep -q 'Bundle.main.resourceURL' "$PROJECT_DIR/Sources/App/AppMain.swift"
-if /usr/bin/grep -R -n 'NSOpenPanel\|extensionField\|importTemplate' "$PROJECT_DIR/Sources"; then
+if /usr/bin/grep -R -n 'NSOpenPanel\|extensionField\|importTemplate\|更多文件类型' "$PROJECT_DIR/Sources"; then
     echo "Arbitrary custom type or template input found" >&2
     exit 1
 fi
-/usr/bin/grep -q 'static let currentVersion = 1' "$PROJECT_DIR/Sources/App/FileTypeCatalog.swift"
-/usr/bin/grep -q 'FileTypeCatalog.additional.filter' "$PROJECT_DIR/Sources/App/FileTypeCatalog.swift"
+/usr/bin/grep -q 'static let currentVersion = 1' "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift"
+/usr/bin/grep -q 'FileTypeCatalog.additional.filter' "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift"
+menu_source="$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift"
+txt_line="$(/usr/bin/grep -n '文本文档 (.txt)' "$menu_source" | /usr/bin/cut -d: -f1)"
+md_line="$(/usr/bin/grep -n 'Markdown 文件 (.md)' "$menu_source" | /usr/bin/cut -d: -f1)"
+docx_line="$(/usr/bin/grep -n 'Word 文档 (.docx)' "$menu_source" | /usr/bin/cut -d: -f1)"
+xlsx_line="$(/usr/bin/grep -n 'Excel 工作簿 (.xlsx)' "$menu_source" | /usr/bin/cut -d: -f1)"
+first_separator_line="$(/usr/bin/grep -n 'submenu.addItem(.separator())' "$menu_source" | /usr/bin/head -1 | /usr/bin/cut -d: -f1)"
+manage_line="$(/usr/bin/grep -n '管理文件类型…' "$menu_source" | /usr/bin/head -1 | /usr/bin/cut -d: -f1)"
+(( txt_line < md_line && md_line < docx_line && docx_line < xlsx_line && xlsx_line < first_separator_line && first_separator_line < manage_line ))
+/usr/bin/grep -q 'UserDefaults.standard.object' "$menu_source"
+/usr/bin/grep -q 'FileTypeSelection.storedValue' "$menu_source"
+/usr/bin/grep -q 'private static let delegate = AppDelegate()' "$PROJECT_DIR/Sources/App/AppMain.swift"
+/usr/bin/grep -q 'withApplicationAt: containingApp' "$menu_source"
+/usr/bin/grep -q 'appBundle.bundleIdentifier == String(extensionID.dropLast' "$menu_source"
+/usr/bin/grep -q 'isExecutableFile(atPath: executable.path)' "$menu_source"
+/usr/bin/grep -q 'func application(_ application: NSApplication, open urls: \[URL\])' \
+    "$PROJECT_DIR/Sources/App/AppMain.swift"
 
 if VERSION='../escape' "$PROJECT_DIR/scripts/package.sh" >/dev/null 2>&1; then
     echo "Unsafe package VERSION was accepted" >&2
@@ -71,6 +85,7 @@ fi
     -o "$PROJECT_DIR/.build/ExclusiveCreate-test.o"
 /usr/bin/swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
+    "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
     "$PROJECT_DIR/tests/FileCreationTests.swift" \
     "$PROJECT_DIR/.build/ExclusiveCreate-test.o" \
     -o "$PROJECT_DIR/.build/file-creation-tests"
@@ -81,7 +96,7 @@ fi
 /usr/bin/swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
     -framework AppKit \
     "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
-    "$PROJECT_DIR/Sources/App/FileTypeCatalog.swift" \
+    "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
     "$PROJECT_DIR/tests/CatalogTests.swift" \
     "$PROJECT_DIR/.build/ExclusiveCreate-test.o" \
     -o "$PROJECT_DIR/.build/catalog-tests"
@@ -93,6 +108,7 @@ failed_install_dir="$PROJECT_DIR/.build/failed-install-test"
 failed_install_trash="$PROJECT_DIR/.build/failed-install-trash"
 rm -rf "$failed_install_dir" "$failed_install_trash"
 if INSTALL_DIR="$failed_install_dir" FAILED_INSTALL_DIR="$failed_install_trash" LSREGISTER=/usr/bin/false \
+    PROCESS_KILLER=/usr/bin/true FINDER_RESTARTER=/usr/bin/true \
     "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Fresh install did not surface a registration failure" >&2
     exit 1
@@ -114,8 +130,16 @@ existing_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$install_
 rm -rf "$install_test_dir/FinderCreateFile.app"
 /usr/bin/ditto "$APP" "$install_test_dir/FinderCreateFile.app"
 echo 'previous-version-marker' > "$install_test_dir/FinderCreateFile.app/previous-version-marker"
-if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/false "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/false PROCESS_KILLER=/usr/bin/true FINDER_RESTARTER=/usr/bin/true \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Installer did not surface a registration failure" >&2
+    exit 1
+fi
+[[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
+if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/true PLUGIN_KIT=/usr/bin/false PROCESS_KILLER=/usr/bin/true \
+    FINDER_RESTARTER=/usr/bin/true \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+    echo "Installer did not surface a partial registration failure" >&2
     exit 1
 fi
 [[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
@@ -125,10 +149,24 @@ INSTALL_DIR="$install_test_dir" BACKUP_DIR="$backup_test_dir" SKIP_REGISTRATION=
 /usr/bin/codesign --verify --deep --strict "$install_test_dir/FinderCreateFile.app"
 /usr/bin/find "$backup_test_dir" -name previous-version-marker -print -quit | /usr/bin/grep -q .
 
+default_backup_home="$PROJECT_DIR/.build/default-backup-home"
+rm -rf "$default_backup_home"
+mkdir -p "$default_backup_home"
+echo 'default-backup-marker' > "$install_test_dir/FinderCreateFile.app/default-backup-marker"
+HOME="$default_backup_home" INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
+/usr/bin/find "$default_backup_home/Library/Application Support/FinderCreateFile/Backups/updates" \
+    -name default-backup-marker -print -quit | /usr/bin/grep -q .
+
 support_test_dir="$PROJECT_DIR/.build/support-test"
 trash_test_dir="$PROJECT_DIR/.build/trash-test"
 mkdir -p "$support_test_dir"
 echo '{"version":1,"enabledTypeIDs":["json"]}' > "$support_test_dir/settings.json"
+INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes
+[[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
+[[ -f "$support_test_dir/settings.json" ]]
+INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
 INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge
 [[ ! -e "$install_test_dir/FinderCreateFile.app" ]]

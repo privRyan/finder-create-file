@@ -49,15 +49,17 @@ for arch in $ARCHS; do
     /usr/bin/swiftc -O -whole-module-optimization -target "$target" \
         -framework AppKit -framework Carbon \
         "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
-        "$PROJECT_DIR/Sources/App/FileTypeCatalog.swift" \
+        "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
         "$PROJECT_DIR/Sources/App/AppMain.swift" \
         "$BUILD_DIR/ExclusiveCreate-$arch.o" \
         -o "$BUILD_DIR/FinderCreateFile-$arch"
     app_binaries+=("$BUILD_DIR/FinderCreateFile-$arch")
-    /usr/bin/swiftc -O -whole-module-optimization -target "$target" \
+    /usr/bin/swiftc -O -whole-module-optimization -parse-as-library -target "$target" \
         -module-name FinderCreateFileFinderSync \
         -framework AppKit -framework FinderSync \
+        "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
         "$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift" \
+        -Xlinker -e -Xlinker _NSExtensionMain \
         -o "$BUILD_DIR/FinderCreateFileFinderSync-$arch"
     extension_binaries+=("$BUILD_DIR/FinderCreateFileFinderSync-$arch")
 done
