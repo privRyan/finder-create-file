@@ -7,12 +7,17 @@ DIST_DIR="$PROJECT_DIR/dist"
 APP_NAME="FinderCreateFile"
 APP="$DIST_DIR/$APP_NAME.app"
 APPEX="$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex"
-VERSION="${VERSION:-1.0.1}"
-BUILD_NUMBER="${BUILD_NUMBER:-2}"
-BUNDLE_ID_PREFIX="${BUNDLE_ID_PREFIX:-io.github.privRyan}"
+VERSION="${VERSION:-1.1.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-3}"
+OFFICIAL_APP_ID="io.github.privRyan.FinderCreateFile"
+OFFICIAL_EXTENSION_ID="io.github.privRyan.FinderCreateFile.FinderSync"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 ARCHS="${ARCHS:-arm64 x86_64}"
 
+if [[ -n "${BUNDLE_ID_PREFIX+x}" && "${BUNDLE_ID_PREFIX:-}" != "io.github.privRyan" ]]; then
+    echo "BUNDLE_ID_PREFIX is not supported; official builds use io.github.privRyan." >&2
+    exit 64
+fi
 if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][A-Za-z0-9.-]+)?$ ]] || [[ "$VERSION" == *".."* ]]; then
     echo "Invalid VERSION: $VERSION" >&2
     exit 64
@@ -33,10 +38,10 @@ mkdir -p \
 cp "$PROJECT_DIR/Config/AppInfo.plist" "$APP/Contents/Info.plist"
 cp "$PROJECT_DIR/Config/ExtensionInfo.plist" "$APPEX/Contents/Info.plist"
 
-/usr/bin/plutil -replace CFBundleIdentifier -string "$BUNDLE_ID_PREFIX.FinderCreateFile" "$APP/Contents/Info.plist"
+/usr/bin/plutil -replace CFBundleIdentifier -string "$OFFICIAL_APP_ID" "$APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP/Contents/Info.plist"
-/usr/bin/plutil -replace CFBundleIdentifier -string "$BUNDLE_ID_PREFIX.FinderCreateFile.FinderSync" "$APPEX/Contents/Info.plist"
+/usr/bin/plutil -replace CFBundleIdentifier -string "$OFFICIAL_EXTENSION_ID" "$APPEX/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleShortVersionString -string "$VERSION" "$APPEX/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APPEX/Contents/Info.plist"
 
@@ -95,7 +100,7 @@ icon_512x512@2x.png 1024
 SIZES
 /usr/bin/iconutil -c icns "$BUILD_DIR/icon.iconset" -o "$APP/Contents/Resources/AppIcon.icns"
 
-for type in docx xlsx; do
+for type in docx xlsx pptx; do
     template_source="$PROJECT_DIR/Resources/OfficeTemplates/$type"
     template_stage="$BUILD_DIR/template-$type"
     template_output="$APP/Contents/Resources/Templates/blank.$type"
@@ -106,8 +111,10 @@ for type in docx xlsx; do
         cd "$template_stage"
         if [[ "$type" == "docx" ]]; then
             /usr/bin/zip -X -q "$template_output" '[Content_Types].xml' '_rels/.rels' 'word/document.xml'
-        else
+        elif [[ "$type" == "xlsx" ]]; then
             /usr/bin/zip -X -q "$template_output" '[Content_Types].xml' '_rels/.rels' 'xl/workbook.xml' 'xl/_rels/workbook.xml.rels' 'xl/worksheets/sheet1.xml'
+        else
+            /usr/bin/find . -type f -print | LC_ALL=C /usr/bin/sort | /usr/bin/zip -X -q "$template_output" -@
         fi
     )
 done

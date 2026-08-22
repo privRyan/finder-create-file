@@ -24,6 +24,7 @@ final class FinderSyncExtension: FIFinderSync {
         submenu.addItem(item(title: "Markdown 文件 (.md)", symbol: "doc.text", action: #selector(createMarkdown)))
         submenu.addItem(item(title: "Word 文档 (.docx)", symbol: "doc.richtext", action: #selector(createWord)))
         submenu.addItem(item(title: "Excel 工作簿 (.xlsx)", symbol: "tablecells", action: #selector(createExcel)))
+        submenu.addItem(item(title: "PowerPoint 演示文稿 (.pptx)", symbol: "rectangle.on.rectangle", action: #selector(createPowerPoint)))
         let enabledTypes = FileTypeSelection.enabledTypes(
             from: UserDefaults.standard.object(forKey: FileTypeSelection.defaultsKey)
         )
@@ -55,6 +56,7 @@ final class FinderSyncExtension: FIFinderSync {
     @objc private func createMarkdown() { create(type: "md") }
     @objc private func createWord() { create(type: "docx") }
     @objc private func createExcel() { create(type: "xlsx") }
+    @objc private func createPowerPoint() { create(type: "pptx") }
 
     @objc private func createAdditional(_ sender: NSMenuItem) {
         guard let type = FileTypeCatalog.type(menuTag: sender.tag) else { return }

@@ -29,9 +29,9 @@ The last command is expected to terminate during sandbox initialization on an ad
 
 Conclusion: App Group sharing is not reliable under this project's source-build/ad-hoc-signing model. The final architecture removes the need for cross-process settings:
 
-1. Finder always displays the four default entries directly and consecutively.
+1. Finder always displays the five default entries (TXT, Markdown, Word, Excel, and PowerPoint) directly and consecutively.
 2. **管理文件类型…** opens a checkbox panel owned by the Finder extension.
-3. The extension stores only versioned, fixed catalog IDs in `UserDefaults.standard` inside its own sandbox and renders enabled entries directly after the first separator.
+3. The extension stores only versioned, fixed catalog IDs in `UserDefaults.standard` inside its own sandbox and renders enabled entries directly after the five defaults, without a separator.
 4. Selecting an extra entry sends its fixed ID to the containing app; the app resolves that ID against the same compiled catalog before showing a filename dialog.
 
 No arbitrary extension or template path is accepted from the URL request. A real Finder smoke test on the environment documented above confirmed that the extension-owned panel persisted JSON/XML IDs and that Finder rendered those entries in stable catalog order after reopening the menu. A future signed release does not need an App Group unless responsibilities change; any such change must add a real provisioned-extension integration test first.

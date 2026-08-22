@@ -44,15 +44,6 @@ struct CatalogTests {
         let encoded = FileTypeSelection.storedValue(enabledIDs: Set(["csv", "json", "unknown", "csv"]))
         precondition(FileTypeSelection.enabledTypes(from: encoded).map(\.id) == ["json", "csv"])
 
-        let suiteName = "io.github.privRyan.FinderCreateFile.tests.\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else { fatalError("Unable to create test defaults") }
-        defaults.set(encoded, forKey: FileTypeSelection.defaultsKey)
-        precondition(
-            FileTypeSelection.enabledTypes(from: defaults.object(forKey: FileTypeSelection.defaultsKey)).map(\.id)
-                == ["json", "csv"]
-        )
-        defaults.removePersistentDomain(forName: suiteName)
-
         let validExtension = URL(fileURLWithPath:
             "/Applications/FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex"
         )
@@ -85,6 +76,8 @@ struct CatalogTests {
 
         let fixed = AppRequestParser.parse("findercreatefile://create?type=txt&path=%2FUsers%2Ftester")
         precondition(fixed == .createFixed(type: "txt", path: "/Users/tester"))
+        let fixedPowerPoint = AppRequestParser.parse("findercreatefile://create?type=pptx&path=%2FUsers%2Ftester")
+        precondition(fixedPowerPoint == .createFixed(type: "pptx", path: "/Users/tester"))
         let additional = AppRequestParser.parse("findercreatefile://additional?typeID=json&path=%2FUsers%2Ftester")
         precondition(additional == .createAdditional(typeID: "json", path: "/Users/tester"))
         precondition(AppRequestParser.parse("findercreatefile://additional?typeID=evil&path=%2FUsers%2Ftester") == nil)

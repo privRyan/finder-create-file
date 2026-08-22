@@ -42,6 +42,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return FileConfiguration(title: "新建 Word 文档", defaultName: "新建 Word 文档", resourceName: "blank.docx", symbol: "doc.richtext", color: .systemIndigo)
         case "xlsx":
             return FileConfiguration(title: "新建 Excel 工作簿", defaultName: "新建 Excel 工作簿", resourceName: "blank.xlsx", symbol: "tablecells", color: .systemGreen)
+        case "pptx":
+            return FileConfiguration(title: "新建 PowerPoint 演示文稿", defaultName: "新建 PowerPoint 演示文稿", resourceName: "blank.pptx", symbol: "rectangle.on.rectangle", color: .systemOrange)
         default:
             return nil
         }

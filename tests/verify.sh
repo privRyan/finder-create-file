@@ -3,6 +3,9 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$PROJECT_DIR/dist/FinderCreateFile.app"
+preferences_before="$PROJECT_DIR/.build/test-preferences-before.txt"
+preferences_after="$PROJECT_DIR/.build/test-preferences-after.txt"
+/usr/bin/find "$HOME/Library/Preferences" -maxdepth 1 -name 'io.github.privRyan.FinderCreateFile.tests.*.plist' -print 2>/dev/null | LC_ALL=C /usr/bin/sort > "$preferences_before"
 
 for script in "$PROJECT_DIR"/scripts/*.sh "$PROJECT_DIR"/tests/*.sh; do
     /bin/bash -n "$script"
@@ -16,6 +19,7 @@ fi
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP"
 /usr/bin/unzip -tq "$APP/Contents/Resources/Templates/blank.docx"
 /usr/bin/unzip -tq "$APP/Contents/Resources/Templates/blank.xlsx"
+/usr/bin/unzip -tq "$APP/Contents/Resources/Templates/blank.pptx"
 for xml in \
     "$PROJECT_DIR/Resources/OfficeTemplates/docx/[Content_Types].xml" \
     "$PROJECT_DIR/Resources/OfficeTemplates/docx/_rels/.rels" \
@@ -27,10 +31,26 @@ for xml in \
     "$PROJECT_DIR/Resources/OfficeTemplates/xlsx/xl/worksheets/sheet1.xml"; do
     /usr/bin/xmllint --noout "$xml"
 done
+/usr/bin/find "$PROJECT_DIR/Resources/OfficeTemplates/pptx" \( -name '*.xml' -o -name '*.rels' \) \
+    -exec /usr/bin/xmllint --noout {} +
 docx_entries="$(/usr/bin/unzip -Z1 "$APP/Contents/Resources/Templates/blank.docx")"
 xlsx_entries="$(/usr/bin/unzip -Z1 "$APP/Contents/Resources/Templates/blank.xlsx")"
+pptx_entries="$(/usr/bin/unzip -Z1 "$APP/Contents/Resources/Templates/blank.pptx")"
 /usr/bin/grep -qx 'word/document.xml' <<< "$docx_entries"
 /usr/bin/grep -qx 'xl/worksheets/sheet1.xml' <<< "$xlsx_entries"
+/usr/bin/grep -qx 'ppt/presentation.xml' <<< "$pptx_entries"
+/usr/bin/grep -qx 'ppt/slides/slide1.xml' <<< "$pptx_entries"
+[[ "$(/usr/bin/grep -c '^ppt/slides/slide[0-9][0-9]*\.xml$' <<< "$pptx_entries")" == "1" ]]
+[[ "$(/usr/bin/grep -o '<p:sldId ' "$PROJECT_DIR/Resources/OfficeTemplates/pptx/ppt/presentation.xml" | /usr/bin/wc -l | /usr/bin/tr -d ' ')" == "1" ]]
+/usr/bin/grep -q '<p:sldSz cx="12192000" cy="6858000"' "$PROJECT_DIR/Resources/OfficeTemplates/pptx/ppt/presentation.xml"
+if /usr/bin/grep -q '<p:sp[ >]\|<p:graphicFrame[ >]\|<p:pic[ >]\|<p:cxnSp[ >]' "$PROJECT_DIR/Resources/OfficeTemplates/pptx/ppt/slides/slide1.xml"; then
+    echo "Blank PowerPoint slide contains a visible object" >&2
+    exit 1
+fi
+if /usr/bin/grep -R -i -n 'TargetMode="External"\|externalLink\|vbaProject\|macrosheet' "$PROJECT_DIR/Resources/OfficeTemplates/pptx"; then
+    echo "PowerPoint template contains an external link or macro" >&2
+    exit 1
+fi
 app_archs="$(/usr/bin/lipo -archs "$APP/Contents/MacOS/FinderCreateFile")"
 extension_archs="$(/usr/bin/lipo -archs "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
 move_helper_archs="$(/usr/bin/lipo -archs "$APP/Contents/Helpers/AtomicInstallMove")"
@@ -56,7 +76,7 @@ if /usr/bin/grep -R -n '/Users/' "$PROJECT_DIR/Sources" "$PROJECT_DIR/Config" "$
     echo "Absolute user path found" >&2
     exit 1
 fi
-for type in txt md docx xlsx; do
+for type in txt md docx xlsx pptx; do
     /usr/bin/grep -q "create(type: \"$type\")" "$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift"
 done
 /usr/bin/grep -q 'Bundle.main.resourceURL' "$PROJECT_DIR/Sources/App/AppMain.swift"
@@ -71,8 +91,9 @@ txt_line="$(/usr/bin/grep -n '文本文档 (.txt)' "$menu_source" | /usr/bin/cut
 md_line="$(/usr/bin/grep -n 'Markdown 文件 (.md)' "$menu_source" | /usr/bin/cut -d: -f1)"
 docx_line="$(/usr/bin/grep -n 'Word 文档 (.docx)' "$menu_source" | /usr/bin/cut -d: -f1)"
 xlsx_line="$(/usr/bin/grep -n 'Excel 工作簿 (.xlsx)' "$menu_source" | /usr/bin/cut -d: -f1)"
+pptx_line="$(/usr/bin/grep -n 'PowerPoint 演示文稿 (.pptx)' "$menu_source" | /usr/bin/cut -d: -f1)"
 manage_line="$(/usr/bin/grep -n '管理文件类型…' "$menu_source" | /usr/bin/head -1 | /usr/bin/cut -d: -f1)"
-(( txt_line < md_line && md_line < docx_line && docx_line < xlsx_line && xlsx_line < manage_line ))
+(( txt_line < md_line && md_line < docx_line && docx_line < xlsx_line && xlsx_line < pptx_line && pptx_line < manage_line ))
 if /usr/bin/grep -q 'submenu.addItem(.separator())\|representedObject' "$menu_source"; then
     echo "Finder menu unexpectedly contains a separator or representedObject transport" >&2
     exit 1
@@ -91,8 +112,12 @@ fi
 /usr/bin/grep -q 'NSScrollView()' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
 /usr/bin/grep -q 'NSApp.setActivationPolicy(.regular)' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
 /usr/bin/grep -q 'NSApp.setActivationPolicy(.accessory)' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
-/usr/bin/grep -q '<string>1.0.1</string>' "$PROJECT_DIR/Config/AppInfo.plist"
-/usr/bin/grep -q '<string>2</string>' "$PROJECT_DIR/Config/AppInfo.plist"
+for plist in "$PROJECT_DIR/Config/AppInfo.plist" "$PROJECT_DIR/Config/ExtensionInfo.plist"; do
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" == "1.1.0" ]]
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" == "3" ]]
+done
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile.FinderSync" ]]
 /usr/bin/grep -q 'func application(_ application: NSApplication, open urls: \[URL\])' \
     "$PROJECT_DIR/Sources/App/AppMain.swift"
 
@@ -100,6 +125,11 @@ if VERSION='../escape' "$PROJECT_DIR/scripts/package.sh" >/dev/null 2>&1; then
     echo "Unsafe package VERSION was accepted" >&2
     exit 1
 fi
+if BUNDLE_ID_PREFIX=io.github.example "$PROJECT_DIR/scripts/build.sh" >/dev/null 2>&1; then
+    echo "Custom BUNDLE_ID_PREFIX was accepted" >&2
+    exit 1
+fi
+[[ -d "$APP" ]]
 
 /usr/bin/clang -target "$(uname -m)-apple-macos13.0" -mmacosx-version-min=13.0 -c \
     "$PROJECT_DIR/Sources/Shared/ExclusiveCreate.c" \
@@ -135,6 +165,21 @@ fi
 install_test_dir="$PROJECT_DIR/.build/install-test"
 rm -rf "$install_test_dir"
 mkdir -p "$install_test_dir"
+
+# The installer only manages the same fixed identities as the uninstaller.
+unofficial_source="$PROJECT_DIR/.build/unofficial-source.app"
+/usr/bin/ditto --noextattr --norsrc "$APP" "$unofficial_source"
+/usr/bin/plutil -replace CFBundleIdentifier -string io.github.example.FinderCreateFile "$unofficial_source/Contents/Info.plist"
+/usr/bin/plutil -replace CFBundleIdentifier -string io.github.example.FinderCreateFile.FinderSync \
+    "$unofficial_source/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/Info.plist"
+/usr/bin/codesign --force --deep --sign - "$unofficial_source" >/dev/null
+if INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$unofficial_source" >/dev/null 2>&1; then
+    echo "Installer accepted unofficial bundle identifiers" >&2
+    exit 1
+fi
+[[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
+rm -rf "$unofficial_source"
 
 # Copy and verification failures leave no destination, staging directory, or lock.
 for failing_copy_tool in /usr/bin/false /usr/bin/true; do
@@ -261,17 +306,111 @@ support_test_dir="$PROJECT_DIR/.build/support-test"
 trash_test_dir="$PROJECT_DIR/.build/trash-test"
 mkdir -p "$support_test_dir"
 echo '{"version":1,"enabledTypeIDs":["json"]}' > "$support_test_dir/settings.json"
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" FCF_TEST_TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes
 [[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
 [[ -f "$support_test_dir/settings.json" ]]
 INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" FCF_TEST_TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge
 [[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
 [[ ! -e "$support_test_dir" ]]
 /usr/bin/find "$trash_test_dir" -name 'FinderCreateFile*.app' -print -quit | /usr/bin/grep -q .
 /usr/bin/find "$trash_test_dir" -name 'FinderCreateFile-Settings-*' -print -quit | /usr/bin/grep -q .
+
+# Registration cleanup is attempted even when the app was already deleted manually.
+uninstall_tool_dir="$PROJECT_DIR/.build/uninstall-tools"
+uninstall_command_log="$PROJECT_DIR/.build/uninstall-commands.log"
+rm -rf "$uninstall_tool_dir" "$uninstall_command_log"
+mkdir -p "$uninstall_tool_dir"
+for tool in pluginkit lsregister pkill killall; do
+    /bin/ln -s "$PROJECT_DIR/tests/record-command.sh" "$uninstall_tool_dir/$tool"
+done
+missing_output="$(INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
+    FCF_TEST_TRASH_DIR="$trash_test_dir" UNINSTALL_COMMAND_LOG="$uninstall_command_log" \
+    PLUGIN_KIT="$uninstall_tool_dir/pluginkit" LSREGISTER="$uninstall_tool_dir/lsregister" \
+    PROCESS_KILLER="$uninstall_tool_dir/pkill" FINDER_RESTARTER="$uninstall_tool_dir/killall" \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes 2>&1)"
+/usr/bin/grep -q 'FinderCreateFile is not installed' <<< "$missing_output"
+/usr/bin/grep -q 'pluginkit -e ignore -i io.github.privRyan.FinderCreateFile.FinderSync' "$uninstall_command_log"
+/usr/bin/grep -q 'pkill -x FinderCreateFile$' "$uninstall_command_log"
+/usr/bin/grep -q 'pkill -x FinderCreateFileFinderSync$' "$uninstall_command_log"
+/usr/bin/grep -q 'killall Finder$' "$uninstall_command_log"
+if /usr/bin/grep -q '^lsregister ' "$uninstall_command_log"; then
+    echo "Uninstaller attempted LaunchServices removal without an available app path" >&2
+    exit 1
+fi
+
+# Available official bundle paths are explicitly unregistered before the app is moved.
+INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
+: > "$uninstall_command_log"
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
+    FCF_TEST_TRASH_DIR="$trash_test_dir" UNINSTALL_COMMAND_LOG="$uninstall_command_log" \
+    PLUGIN_KIT="$uninstall_tool_dir/pluginkit" LSREGISTER="$uninstall_tool_dir/lsregister" \
+    PROCESS_KILLER="$uninstall_tool_dir/pkill" FINDER_RESTARTER="$uninstall_tool_dir/killall" \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes >/dev/null
+/usr/bin/grep -F -q "pluginkit -r $install_test_dir/FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex" "$uninstall_command_log"
+/usr/bin/grep -F -q "lsregister -u $install_test_dir/FinderCreateFile.app" "$uninstall_command_log"
+[[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
+
+# A generic inherited environment variable can never redirect purge scope.
+ambiguous_support_dir="$PROJECT_DIR/.build/ambiguous-support"
+mkdir -p "$ambiguous_support_dir"
+echo preserve > "$ambiguous_support_dir/user-file"
+if INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$ambiguous_support_dir" \
+    SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null 2>&1; then
+    echo "Uninstaller accepted ambiguous SUPPORT_DIRECTORY purge scope" >&2
+    exit 1
+fi
+[[ -f "$ambiguous_support_dir/user-file" ]]
+ambiguous_support_link="$PROJECT_DIR/.build/ambiguous-support-link"
+/bin/ln -s "$ambiguous_support_dir" "$ambiguous_support_link"
+if INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$ambiguous_support_link" \
+    FCF_TEST_TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null 2>&1; then
+    echo "Uninstaller accepted a symlinked settings container" >&2
+    exit 1
+fi
+[[ -f "$ambiguous_support_dir/user-file" ]]
+
+# Generic Trash overrides are rejected, and test-only Trash paths must not be symlinks.
+INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
+if INSTALL_DIR="$install_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes >/dev/null 2>&1; then
+    echo "Uninstaller accepted an ambiguous Trash override" >&2
+    exit 1
+fi
+[[ -d "$install_test_dir/FinderCreateFile.app" ]]
+symlink_trash_target="$PROJECT_DIR/.build/symlink-trash-target"
+symlink_trash_path="$PROJECT_DIR/.build/symlink-trash"
+mkdir -p "$symlink_trash_target"
+/bin/ln -s "$symlink_trash_target" "$symlink_trash_path"
+if INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
+    FCF_TEST_TRASH_DIR="$symlink_trash_path" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes >/dev/null 2>&1; then
+    echo "Uninstaller accepted a symlinked Trash directory" >&2
+    exit 1
+fi
+[[ -d "$install_test_dir/FinderCreateFile.app" ]]
+
+# Best-effort registration failures are visible warnings, not silent success.
+failure_output="$(INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
+    FCF_TEST_TRASH_DIR="$trash_test_dir" UNINSTALL_COMMAND_LOG="$uninstall_command_log" FAIL_TOOL_NAME=pluginkit \
+    PLUGIN_KIT="$uninstall_tool_dir/pluginkit" LSREGISTER="$uninstall_tool_dir/lsregister" \
+    PROCESS_KILLER="$uninstall_tool_dir/pkill" FINDER_RESTARTER="$uninstall_tool_dir/killall" \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes 2>&1)"
+/usr/bin/grep -q 'Warning: could not disable Finder extension' <<< "$failure_output"
+
+# Purge never guesses that unrelated legacy data belongs to this release.
+unknown_data_dir="$PROJECT_DIR/.build/unknown-legacy-data"
+mkdir -p "$unknown_data_dir"
+echo preserve > "$unknown_data_dir/user-file"
+unknown_output="$(INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$PROJECT_DIR/.build/no-settings" \
+    LEGACY_DATA_DIRECTORY="$unknown_data_dir" FCF_TEST_TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge 2>&1)"
+[[ -f "$unknown_data_dir/user-file" ]]
+/usr/bin/grep -q 'unrecognized legacy data was preserved' <<< "$unknown_output"
 
 collision_timestamp="20200101-000000"
 collision_trash_dir="$PROJECT_DIR/.build/trash-collision-test"
@@ -285,15 +424,23 @@ mkdir -p \
     "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-2" \
     "$collision_support_dir"
 INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
-echo 'collision-app-marker' > "$install_test_dir/FinderCreateFile.app/collision-app-marker"
+echo 'collision-app-marker' > "$install_test_dir/FinderCreateFile.app/Contents/Resources/collision-app-marker"
+/usr/bin/codesign --force --deep --sign - "$install_test_dir/FinderCreateFile.app" >/dev/null
 echo 'collision-settings-marker' > "$collision_support_dir/collision-settings-marker"
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$collision_support_dir" TRASH_DIR="$collision_trash_dir" \
-    TRASH_TIMESTAMP="$collision_timestamp" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$collision_support_dir" FCF_TEST_TRASH_DIR="$collision_trash_dir" \
+    FCF_TEST_TRASH_TIMESTAMP="$collision_timestamp" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null
-[[ -f "$collision_trash_dir/FinderCreateFile-$collision_timestamp-3.app/collision-app-marker" ]]
+[[ -f "$collision_trash_dir/FinderCreateFile-$collision_timestamp-3.app/Contents/Resources/collision-app-marker" ]]
 [[ -f "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-3/collision-settings-marker" ]]
 [[ ! -e "$collision_trash_dir/FinderCreateFile-$collision_timestamp-2.app/FinderCreateFile.app" ]]
 [[ ! -e "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-2/support-collision-test" ]]
 rm -rf "$install_test_dir"
+
+/usr/bin/find "$HOME/Library/Preferences" -maxdepth 1 -name 'io.github.privRyan.FinderCreateFile.tests.*.plist' -print 2>/dev/null | LC_ALL=C /usr/bin/sort > "$preferences_after"
+if ! /usr/bin/cmp -s "$preferences_before" "$preferences_after"; then
+    echo "Tests left a new FinderCreateFile test preference in the real user Library" >&2
+    /usr/bin/diff -u "$preferences_before" "$preferences_after" >&2 || true
+    exit 1
+fi
 
 echo "All verification checks passed."

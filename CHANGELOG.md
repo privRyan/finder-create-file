@@ -1,5 +1,16 @@
 # Changelog / 更新日志
 
+## 1.1.0 (build 3)
+
+- Add PowerPoint (`.pptx`) as the fifth fixed default type, backed by a valid one-slide 16:9 OOXML template.
+- Add a deterministic Universal 2 prebuilt ZIP, matching SHA-256 file, bilingual double-click install/uninstall commands, and quick-start guides.
+- Make extension/process cleanup independent of whether the app is still installed; clarify normal uninstall, purge, and preserved unknown data.
+- Stop tests from creating real-user preference domains.
+- 新增第五个固定默认类型 PowerPoint（`.pptx`），使用有效的一页 16:9 OOXML 空白模板。
+- 新增确定性的 Universal 2 预编译 ZIP、配套 SHA-256 文件、可双击的中英安装/卸载命令和快速说明。
+- 即使 App 已被手动删除，也会执行扩展与进程清理；明确普通卸载、彻底清理及未知数据保留策略。
+- 测试不再创建真实用户偏好域。
+
 ## 1.0.1 (build 2)
 
 - Bring the Finder extension's file-type settings window to the front and make it reachable from Command-Tab while open; restore background accessory behavior when it closes.
