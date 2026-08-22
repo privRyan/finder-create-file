@@ -46,6 +46,8 @@ expected_top_level="$(/usr/bin/printf '%s\n' \
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" == "3" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$appex/Contents/Info.plist")" == "$VERSION" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$appex/Contents/Info.plist")" == "3" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$appex/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile.FinderSync" ]]
 for executable in \
     "$app/Contents/MacOS/FinderCreateFile" \
     "$appex/Contents/MacOS/FinderCreateFileFinderSync"; do

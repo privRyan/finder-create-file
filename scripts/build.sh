@@ -9,10 +9,15 @@ APP="$DIST_DIR/$APP_NAME.app"
 APPEX="$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex"
 VERSION="${VERSION:-1.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-3}"
-BUNDLE_ID_PREFIX="${BUNDLE_ID_PREFIX:-io.github.privRyan}"
+OFFICIAL_APP_ID="io.github.privRyan.FinderCreateFile"
+OFFICIAL_EXTENSION_ID="io.github.privRyan.FinderCreateFile.FinderSync"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 ARCHS="${ARCHS:-arm64 x86_64}"
 
+if [[ -n "${BUNDLE_ID_PREFIX+x}" && "${BUNDLE_ID_PREFIX:-}" != "io.github.privRyan" ]]; then
+    echo "BUNDLE_ID_PREFIX is not supported; official builds use io.github.privRyan." >&2
+    exit 64
+fi
 if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][A-Za-z0-9.-]+)?$ ]] || [[ "$VERSION" == *".."* ]]; then
     echo "Invalid VERSION: $VERSION" >&2
     exit 64
@@ -33,10 +38,10 @@ mkdir -p \
 cp "$PROJECT_DIR/Config/AppInfo.plist" "$APP/Contents/Info.plist"
 cp "$PROJECT_DIR/Config/ExtensionInfo.plist" "$APPEX/Contents/Info.plist"
 
-/usr/bin/plutil -replace CFBundleIdentifier -string "$BUNDLE_ID_PREFIX.FinderCreateFile" "$APP/Contents/Info.plist"
+/usr/bin/plutil -replace CFBundleIdentifier -string "$OFFICIAL_APP_ID" "$APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP/Contents/Info.plist"
-/usr/bin/plutil -replace CFBundleIdentifier -string "$BUNDLE_ID_PREFIX.FinderCreateFile.FinderSync" "$APPEX/Contents/Info.plist"
+/usr/bin/plutil -replace CFBundleIdentifier -string "$OFFICIAL_EXTENSION_ID" "$APPEX/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleShortVersionString -string "$VERSION" "$APPEX/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APPEX/Contents/Info.plist"
 

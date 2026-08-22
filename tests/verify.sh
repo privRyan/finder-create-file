@@ -116,6 +116,8 @@ for plist in "$PROJECT_DIR/Config/AppInfo.plist" "$PROJECT_DIR/Config/ExtensionI
     [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" == "1.1.0" ]]
     [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" == "3" ]]
 done
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile.FinderSync" ]]
 /usr/bin/grep -q 'func application(_ application: NSApplication, open urls: \[URL\])' \
     "$PROJECT_DIR/Sources/App/AppMain.swift"
 
@@ -123,6 +125,11 @@ if VERSION='../escape' "$PROJECT_DIR/scripts/package.sh" >/dev/null 2>&1; then
     echo "Unsafe package VERSION was accepted" >&2
     exit 1
 fi
+if BUNDLE_ID_PREFIX=io.github.example "$PROJECT_DIR/scripts/build.sh" >/dev/null 2>&1; then
+    echo "Custom BUNDLE_ID_PREFIX was accepted" >&2
+    exit 1
+fi
+[[ -d "$APP" ]]
 
 /usr/bin/clang -target "$(uname -m)-apple-macos13.0" -mmacosx-version-min=13.0 -c \
     "$PROJECT_DIR/Sources/Shared/ExclusiveCreate.c" \
@@ -158,6 +165,21 @@ fi
 install_test_dir="$PROJECT_DIR/.build/install-test"
 rm -rf "$install_test_dir"
 mkdir -p "$install_test_dir"
+
+# The installer only manages the same fixed identities as the uninstaller.
+unofficial_source="$PROJECT_DIR/.build/unofficial-source.app"
+/usr/bin/ditto --noextattr --norsrc "$APP" "$unofficial_source"
+/usr/bin/plutil -replace CFBundleIdentifier -string io.github.example.FinderCreateFile "$unofficial_source/Contents/Info.plist"
+/usr/bin/plutil -replace CFBundleIdentifier -string io.github.example.FinderCreateFile.FinderSync \
+    "$unofficial_source/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/Info.plist"
+/usr/bin/codesign --force --deep --sign - "$unofficial_source" >/dev/null
+if INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$unofficial_source" >/dev/null 2>&1; then
+    echo "Installer accepted unofficial bundle identifiers" >&2
+    exit 1
+fi
+[[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
+rm -rf "$unofficial_source"
 
 # Copy and verification failures leave no destination, staging directory, or lock.
 for failing_copy_tool in /usr/bin/false /usr/bin/true; do

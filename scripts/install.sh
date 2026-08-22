@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+OFFICIAL_APP_ID="io.github.privRyan.FinderCreateFile"
+OFFICIAL_EXTENSION_ID="io.github.privRyan.FinderCreateFile.FinderSync"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [[ -d "$SCRIPT_DIR/FinderCreateFile.app" ]]; then
     SOURCE_APP="$SCRIPT_DIR/FinderCreateFile.app"
@@ -15,8 +17,8 @@ fi
 /usr/bin/codesign --verify --deep --strict "$SOURCE_APP"
 source_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$SOURCE_APP/Contents/Info.plist")"
 extension_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$SOURCE_APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/Info.plist")"
-if [[ "$extension_id" != "$source_id.FinderSync" ]]; then
-    echo "App and extension bundle identifiers do not match." >&2
+if [[ "$source_id" != "$OFFICIAL_APP_ID" || "$extension_id" != "$OFFICIAL_EXTENSION_ID" ]]; then
+    echo "App and extension must use the official FinderCreateFile bundle identifiers." >&2
     exit 65
 fi
 

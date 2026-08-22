@@ -74,12 +74,14 @@ make uninstall   # 注销扩展并将 App 移到废纸篓，默认保留设置
 make clean       # 清理生成产物
 ```
 
-需要时可覆盖构建参数：
+需要时可覆盖版本、构建号和签名身份：
 
 ```sh
-VERSION=1.1.0 BUILD_NUMBER=3 BUNDLE_ID_PREFIX=io.github.example make build
+VERSION=1.1.0 BUILD_NUMBER=3 make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
+
+官方构建固定使用 `io.github.privRyan.FinderCreateFile` 和 `io.github.privRyan.FinderCreateFile.FinderSync`。脚本不支持自定义 bundle 前缀，因为这会生成官方安装器和卸载器无法安全管理的 App。需要不同标识符的 fork 必须同时明确修改源码、plist 配置和生命周期脚本。
 
 正式拖入 `/Applications` 的发行体验需要 Developer ID 签名和 Apple 公证。即使使用 Developer ID，公开分发二进制前仍须完成 Apple 公证。本项目不会把临时签名描述为 Gatekeeper 认可的正式发行签名。
 

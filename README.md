@@ -74,12 +74,14 @@ make uninstall   # unregister, move the app to Trash, and preserve settings
 make clean       # remove generated artifacts
 ```
 
-Build settings can be overridden when needed:
+Version, build number, and signing identity can be overridden when needed:
 
 ```sh
-VERSION=1.1.0 BUILD_NUMBER=3 BUNDLE_ID_PREFIX=io.github.example make build
+VERSION=1.1.0 BUILD_NUMBER=3 make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
+
+Official builds always use `io.github.privRyan.FinderCreateFile` and `io.github.privRyan.FinderCreateFile.FinderSync`. The scripts do not support a custom bundle prefix because that would produce an app the official installer/uninstaller cannot safely manage. Forks that need different identifiers must explicitly update the source, plist configuration, and lifecycle scripts together.
 
 A polished drag-to-`/Applications` distribution requires a Developer ID signature and Apple notarization. A Developer ID build still needs notarization before public binary distribution; the project intentionally does not pretend that ad-hoc signing bypasses Gatekeeper.
 
