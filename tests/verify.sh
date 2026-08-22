@@ -89,6 +89,10 @@ fi
 /usr/bin/grep -q 'styleMask: \[.titled, .closable, .resizable\]' \
     "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
 /usr/bin/grep -q 'NSScrollView()' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
+/usr/bin/grep -q 'NSApp.setActivationPolicy(.regular)' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
+/usr/bin/grep -q 'NSApp.setActivationPolicy(.accessory)' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
+/usr/bin/grep -q '<string>1.0.1</string>' "$PROJECT_DIR/Config/AppInfo.plist"
+/usr/bin/grep -q '<string>2</string>' "$PROJECT_DIR/Config/AppInfo.plist"
 /usr/bin/grep -q 'func application(_ application: NSApplication, open urls: \[URL\])' \
     "$PROJECT_DIR/Sources/App/AppMain.swift"
 

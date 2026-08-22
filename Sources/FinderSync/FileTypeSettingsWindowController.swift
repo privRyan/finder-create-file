@@ -8,6 +8,10 @@ final class FileTypeSettingsWindowController: NSWindowController, NSWindowDelega
     private let saveHandler: (Set<String>) -> Void
     private let closeHandler: () -> Void
 
+    private final class TopAlignedDocumentView: NSView {
+        override var isFlipped: Bool { true }
+    }
+
     init(
         types: [BuiltInFileType],
         enabledIDs: Set<String>,
@@ -72,7 +76,7 @@ final class FileTypeSettingsWindowController: NSWindowController, NSWindowDelega
             row.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true
         }
 
-        let documentView = NSView()
+        let documentView = TopAlignedDocumentView()
         documentView.translatesAutoresizingMaskIntoConstraints = false
         documentView.addSubview(list)
 
@@ -138,7 +142,22 @@ final class FileTypeSettingsWindowController: NSWindowController, NSWindowDelega
         close()
     }
 
+    @discardableResult
+    func present() -> Bool {
+        guard NSApp.setActivationPolicy(.regular) else { return false }
+        showWindow(nil)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async { [weak self] in
+            self?.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        return true
+    }
+
     func windowWillClose(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
         closeHandler()
     }
 }

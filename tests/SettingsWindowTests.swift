@@ -25,6 +25,15 @@ struct SettingsWindowTests {
         let buttons = views.compactMap { $0 as? NSButton }
         let checkboxes = buttons.filter { $0.title.isEmpty }
         precondition(scrollViews.count == 1)
+        guard let documentView = scrollViews[0].documentView else {
+            fatalError("Scroll view has no document view")
+        }
+        precondition(documentView.isFlipped)
+        guard let firstCheckbox = checkboxes.first else {
+            fatalError("Settings window has no checkbox")
+        }
+        let topInset = firstCheckbox.convert(firstCheckbox.bounds, to: documentView).minY
+        precondition((12...20).contains(topInset))
         precondition(checkboxes.count == 10)
         precondition(buttons.contains { $0.title == "保存" })
         precondition(buttons.contains { $0.title == "取消" })
