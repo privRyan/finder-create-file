@@ -110,16 +110,15 @@ fi
 install_test_dir="$PROJECT_DIR/.build/install-test"
 rm -rf "$install_test_dir"
 failed_install_dir="$PROJECT_DIR/.build/failed-install-test"
-failed_install_trash="$PROJECT_DIR/.build/failed-install-trash"
-rm -rf "$failed_install_dir" "$failed_install_trash"
-if INSTALL_DIR="$failed_install_dir" FAILED_INSTALL_DIR="$failed_install_trash" LSREGISTER=/usr/bin/false \
+rm -rf "$failed_install_dir"
+if INSTALL_DIR="$failed_install_dir" LSREGISTER=/usr/bin/false \
     PROCESS_KILLER=/usr/bin/true FINDER_RESTARTER=/usr/bin/true \
     "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Fresh install did not surface a registration failure" >&2
     exit 1
 fi
 [[ ! -e "$failed_install_dir/FinderCreateFile.app" ]]
-/usr/bin/find "$failed_install_trash" -name 'FinderCreateFile-failed-*.app' -print -quit | /usr/bin/grep -q .
+[[ ! -e "$failed_install_dir/.FinderCreateFile.install.lock" ]]
 
 INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP"
 /usr/bin/codesign --verify --deep --strict "$install_test_dir/FinderCreateFile.app"
@@ -135,18 +134,34 @@ existing_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$install_
 rm -rf "$install_test_dir/FinderCreateFile.app"
 /usr/bin/ditto "$APP" "$install_test_dir/FinderCreateFile.app"
 echo 'previous-version-marker' > "$install_test_dir/FinderCreateFile.app/previous-version-marker"
-rollback_test_root="$PROJECT_DIR/.build/install-rollback-temp"
-rm -rf "$rollback_test_root"
-mkdir -p "$rollback_test_root"
-if INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" LSREGISTER=/usr/bin/false \
+
+# The old cross-filesystem rollback override is explicitly rejected before mutation.
+if INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR=/tmp/not-allowed SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+    echo "Installer accepted the removed ROLLBACK_TMPDIR override" >&2
+    exit 1
+fi
+[[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
+[[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
+
+# A failed atomic move of the old app must leave the destination untouched.
+if INSTALL_DIR="$install_test_dir" OLD_APP_MOVER=/usr/bin/false SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+    echo "Installer ignored an old-app move failure" >&2
+    exit 1
+fi
+[[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
+[[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
+
+if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/false \
     PROCESS_KILLER=/usr/bin/true FINDER_RESTARTER=/usr/bin/true \
     "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
     echo "Installer did not surface a registration failure" >&2
     exit 1
 fi
 [[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
-[[ -z "$(/usr/bin/find "$rollback_test_root" -mindepth 1 -print -quit)" ]]
-if INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" LSREGISTER=/usr/bin/true \
+[[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
+if INSTALL_DIR="$install_test_dir" LSREGISTER=/usr/bin/true \
     PLUGIN_KIT=/usr/bin/false PROCESS_KILLER=/usr/bin/true \
     FINDER_RESTARTER=/usr/bin/true \
     "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
@@ -154,14 +169,68 @@ if INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" LSREGIS
     exit 1
 fi
 [[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
-[[ -z "$(/usr/bin/find "$rollback_test_root" -mindepth 1 -print -quit)" ]]
+[[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
+
+# Catchable termination signals share the same idempotent rollback path.
+for signal_name in INT TERM; do
+    if INSTALL_DIR="$install_test_dir" AFTER_OLD_MOVE_SIGNAL="$signal_name" SKIP_REGISTRATION=1 \
+        "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+        echo "Installer did not fail after $signal_name" >&2
+        exit 1
+    fi
+    [[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
+    [[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
+done
+
+# An ambiguous stale lock is preserved for inspection, never guessed away.
+mkdir -p "$install_test_dir/.FinderCreateFile.install.lock/transaction"
+echo 99999999 > "$install_test_dir/.FinderCreateFile.install.lock/owner.pid"
+echo 'stale-evidence' > "$install_test_dir/.FinderCreateFile.install.lock/transaction/evidence"
+if INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+    echo "Installer ignored an ambiguous stale lock" >&2
+    exit 1
+fi
+[[ -f "$install_test_dir/.FinderCreateFile.install.lock/transaction/evidence" ]]
+[[ -f "$install_test_dir/FinderCreateFile.app/previous-version-marker" ]]
+rm -rf "$install_test_dir/.FinderCreateFile.install.lock"
+
+# mkdir is the installation mutex: a second process cannot enter the transaction.
+concurrent_install_dir="$PROJECT_DIR/.build/install-concurrent-test"
+rm -rf "$concurrent_install_dir"
+mkdir -p "$concurrent_install_dir"
+INSTALL_DIR="$concurrent_install_dir" LOCK_HOLD_SECONDS=2 SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1 &
+first_install_pid=$!
+for _ in {1..50}; do
+    [[ -e "$concurrent_install_dir/.FinderCreateFile.install.lock/owner.pid" ]] && break
+    /bin/sleep 0.1
+done
+[[ -e "$concurrent_install_dir/.FinderCreateFile.install.lock/owner.pid" ]]
+if INSTALL_DIR="$concurrent_install_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+    echo "Concurrent installer unexpectedly acquired the lock" >&2
+    exit 1
+fi
+wait "$first_install_pid"
+[[ ! -e "$concurrent_install_dir/.FinderCreateFile.install.lock" ]]
+/usr/bin/codesign --verify --deep --strict "$concurrent_install_dir/FinderCreateFile.app"
 
 echo 'successful-upgrade-old-marker' > "$install_test_dir/FinderCreateFile.app/successful-upgrade-old-marker"
-INSTALL_DIR="$install_test_dir" ROLLBACK_TMPDIR="$rollback_test_root" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/install.sh" "$APP"
 /usr/bin/codesign --verify --deep --strict "$install_test_dir/FinderCreateFile.app"
 [[ ! -e "$install_test_dir/FinderCreateFile.app/successful-upgrade-old-marker" ]]
-[[ -z "$(/usr/bin/find "$rollback_test_root" -mindepth 1 -print -quit)" ]]
+[[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
+
+# Cleanup happens after commit; failure is a warning and cannot roll back the new app.
+echo 'cleanup-failure-old-marker' > "$install_test_dir/FinderCreateFile.app/cleanup-failure-old-marker"
+INSTALL_DIR="$install_test_dir" COMMITTED_CLEANER=/usr/bin/false SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
+/usr/bin/codesign --verify --deep --strict "$install_test_dir/FinderCreateFile.app"
+[[ ! -e "$install_test_dir/FinderCreateFile.app/cleanup-failure-old-marker" ]]
+[[ -f "$install_test_dir/.FinderCreateFile.install.lock/committed" ]]
+rm -rf "$install_test_dir/.FinderCreateFile.install.lock"
 
 support_test_dir="$PROJECT_DIR/.build/support-test"
 trash_test_dir="$PROJECT_DIR/.build/trash-test"

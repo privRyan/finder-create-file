@@ -36,7 +36,9 @@ make test
 make install
 ```
 
-构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。升级时，旧 App 只会暂存在专用回滚临时目录：成功后自动删除；失败时恢复旧 App，随后清理临时目录。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
+构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。安装器使用原子锁，并把待安装 App 和临时回滚副本都放在规范化后的安装目录内，保证关键移动发生在同一文件系统。命令失败或收到可捕获的 `INT`、`TERM`、`HUP` 时会恢复旧 App；注册全部成功后会先提交事务再清理，因此清理失败也不会撤销新版本。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
+
+`SIGKILL`、断电或系统崩溃无法被脚本捕获。若留下 `.FinderCreateFile.install.lock`，下次安装会保守拒绝继续，而不会猜测应覆盖哪一份。请先检查该目录：`transaction/previous.app` 是升级前的 App，存在 `committed` 标记则表示注册已经完成、只是清理中断。仅在目标 App 不存在或已独立核验后才人工恢复旧 App，最后再手动移除陈旧锁。该策略用于避免在恢复状态不明确时覆盖任一副本。
 
 在访达已打开文件夹的空白处右键：
 

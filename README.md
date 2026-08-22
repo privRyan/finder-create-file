@@ -36,7 +36,9 @@ make test
 make install
 ```
 
-The build creates `dist/FinderCreateFile.app` locally. Installation copies it to `~/Applications`, registers and enables the Finder extension, then restarts Finder. During an upgrade, the previous app is held only in a dedicated temporary rollback directory: success removes it automatically, while failure restores it and then removes the temporary directory. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
+The build creates `dist/FinderCreateFile.app` locally. Installation copies it to `~/Applications`, registers and enables the Finder extension, then restarts Finder. The installer uses an atomic lock and keeps both its staged app and temporary rollback copy inside the normalized installation directory, so all decisive moves stay on one filesystem. A failed command or catchable `INT`, `TERM`, or `HUP` restores the prior app; a completed registration is committed before cleanup, so cleanup failure cannot undo the new installation. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
+
+`SIGKILL`, a power loss, or a machine crash cannot be trapped. A subsequent run refuses to guess when `.FinderCreateFile.install.lock` remains. Inspect that directory first: `transaction/previous.app` is the pre-upgrade app, while a `committed` marker means registration completed and only cleanup was interrupted. Restore the previous app only when the destination is absent or has been independently verified, then remove the stale lock manually. This conservative refusal avoids overwriting either copy during ambiguous recovery.
 
 The menu appears when right-clicking the background of an open Finder folder:
 
