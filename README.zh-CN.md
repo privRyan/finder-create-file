@@ -38,7 +38,7 @@ make install
 
 构建产物位于 `dist/FinderCreateFile.app`。安装时会先在目标旁的唯一暂存目录中完整复制并校验 App，再放入 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。简单的原子锁会拒绝并发安装；可捕获信号只清理暂存目录和锁。若 App 已放置但注册失败，会保留完整 App；再次运行 `make install` 只重试注册，不重复复制。安装器不会猜测清理陈旧锁：确认没有安装进程后，请检查并手动移除准确的 `.FinderCreateFile.install.lock` 目录。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
 
-项目明确不支持自动原地升级：安装器绝不移动、备份、删除或覆盖已有 App。若已有 App 的 bundle ID 和签名 Code Directory 哈希均与源码构建一致，只重试注册；若属于不同构建，请先运行 `make uninstall`（旧 App 会移到废纸篓，可恢复），再运行 `make install`。
+项目明确不支持自动原地升级：安装器绝不移动、备份、删除或覆盖已有 App。若已有 App 的 bundle ID、签名和完整 bundle 指纹均与源码构建一致（包含所有架构及内嵌扩展），只重试注册；若属于不同构建，请先运行 `make uninstall`（旧 App 会移到废纸篓，可恢复），再运行 `make install`。
 
 在访达已打开文件夹的空白处右键：
 

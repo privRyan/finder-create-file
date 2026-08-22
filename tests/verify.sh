@@ -143,6 +143,23 @@ fi
 [[ ! -e "$install_test_dir/.FinderCreateFile.install.lock" ]]
 [[ -z "$(/usr/bin/find "$install_test_dir" -maxdepth 1 -name '.FinderCreateFile.stage.*' -print -quit)" ]]
 
+# A non-cooperating process winning the destination race is preserved; the
+# staged app is not nested into it and registration is never attempted.
+collision_install_dir="$PROJECT_DIR/.build/install-target-race-test"
+rm -rf "$collision_install_dir"
+mkdir -p "$collision_install_dir"
+if INSTALL_DIR="$collision_install_dir" BEFORE_FINAL_MOVE_TEST_HOOK=create-collision \
+    LSREGISTER=/usr/bin/true PLUGIN_KIT=/usr/bin/true PROCESS_KILLER=/usr/bin/true \
+    FINDER_RESTARTER=/usr/bin/true "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null 2>&1; then
+    echo "Installer accepted a destination-path collision" >&2
+    exit 1
+fi
+[[ -f "$collision_install_dir/FinderCreateFile.app/external-evidence" ]]
+[[ ! -e "$collision_install_dir/FinderCreateFile.app/FinderCreateFile.app" ]]
+[[ ! -e "$collision_install_dir/.FinderCreateFile.install.lock" ]]
+[[ -z "$(/usr/bin/find "$collision_install_dir" -maxdepth 1 -name '.FinderCreateFile.stage.*' -print -quit)" ]]
+rm -rf "$collision_install_dir"
+
 # A stale lock is reported and preserved for deliberate manual inspection.
 mkdir -p "$install_test_dir/.FinderCreateFile.install.lock"
 echo 99999999 > "$install_test_dir/.FinderCreateFile.install.lock/owner.pid"

@@ -38,7 +38,7 @@ make install
 
 The build creates `dist/FinderCreateFile.app` locally. Installation first copies and verifies the app in a unique staging directory beside the destination, then places it in `~/Applications`, registers and enables the Finder extension, and restarts Finder. A simple atomic lock rejects concurrent installers. Catchable signals clean staging and the lock; if registration fails after placement, the complete app is retained and rerunning `make install` retries registration without copying it again. A stale lock is never guessed away—inspect `.FinderCreateFile.install.lock`, then remove that exact directory manually if no installer is running. If the menu is still absent, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
 
-Automatic in-place upgrades are intentionally unsupported: the installer never moves, backs up, deletes, or overwrites an existing app. If the existing app has the same bundle ID and signed Code Directory hash, installation only retries registration. If it is a different build, run `make uninstall` first (the old app is moved to Trash and remains recoverable), then run `make install`.
+Automatic in-place upgrades are intentionally unsupported: the installer never moves, backs up, deletes, or overwrites an existing app. If the existing app has the same bundle ID, valid signature, and complete bundle fingerprint (all architectures and the embedded extension included), installation only retries registration. If it is a different build, run `make uninstall` first (the old app is moved to Trash and remains recoverable), then run `make install`.
 
 The menu appears when right-clicking the background of an open Finder folder:
 

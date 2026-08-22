@@ -19,8 +19,24 @@ if [[ "$extension_id" != "$source_id.FinderSync" ]]; then
     echo "App and extension bundle identifiers do not match." >&2
     exit 65
 fi
-source_cdhash="$(/usr/bin/codesign -dvvv "$SOURCE_APP" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -1)"
-[[ -n "$source_cdhash" ]] || { echo "Could not fingerprint the source app." >&2; exit 65; }
+
+bundle_fingerprint() {
+    local bundle="$1"
+    (
+        cd "$bundle"
+        /usr/bin/find . \( -type f -o -type l \) -print | LC_ALL=C /usr/bin/sort | while IFS= read -r item; do
+            if [[ -L "$item" ]]; then
+                /usr/bin/printf 'link\t%s\t%s\n' "$item" "$(/usr/bin/readlink "$item")"
+            else
+                /usr/bin/printf 'file\t%s\t' "$item"
+                /usr/bin/shasum -a 256 "$item" | /usr/bin/awk '{print $1}'
+            fi
+        done
+    ) | /usr/bin/shasum -a 256 | /usr/bin/awk '{print $1}'
+}
+
+source_fingerprint="$(bundle_fingerprint "$SOURCE_APP")"
+[[ -n "$source_fingerprint" ]] || { echo "Could not fingerprint the source app." >&2; exit 65; }
 
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Applications}"
 mkdir -p "$INSTALL_DIR"
@@ -90,8 +106,8 @@ if [[ -e "$DESTINATION" ]]; then
         echo "The installed app is not a valid copy. Move it aside manually, then rerun install." >&2
         false
     fi
-    existing_cdhash="$(/usr/bin/codesign -dvvv "$DESTINATION" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -1)"
-    if [[ -z "$existing_cdhash" || "$existing_cdhash" != "$source_cdhash" ]]; then
+    existing_fingerprint="$(bundle_fingerprint "$DESTINATION")"
+    if [[ -z "$existing_fingerprint" || "$existing_fingerprint" != "$source_fingerprint" ]]; then
         echo "A different FinderCreateFile build is already installed." >&2
         echo "Run scripts/uninstall.sh first (it moves the app to Trash), then run install again." >&2
         false
@@ -103,8 +119,8 @@ else
     "$COPY_TOOL" "$SOURCE_APP" "$STAGED_APP"
     /usr/bin/codesign --verify --deep --strict "$STAGED_APP"
     staged_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$STAGED_APP/Contents/Info.plist")"
-    staged_cdhash="$(/usr/bin/codesign -dvvv "$STAGED_APP" 2>&1 | /usr/bin/sed -n 's/^CDHash=//p' | /usr/bin/head -1)"
-    if [[ "$staged_id" != "$source_id" || "$staged_cdhash" != "$source_cdhash" ]]; then
+    staged_fingerprint="$(bundle_fingerprint "$STAGED_APP")"
+    if [[ "$staged_id" != "$source_id" || "$staged_fingerprint" != "$source_fingerprint" ]]; then
         echo "Staged app verification failed." >&2
         false
     fi
@@ -114,7 +130,23 @@ else
         *) echo "Invalid AFTER_COPY_SIGNAL test hook." >&2; false ;;
     esac
     [[ "${LOCK_HOLD_SECONDS:-0}" == "0" ]] || /bin/sleep "$LOCK_HOLD_SECONDS"
-    /bin/mv "$STAGED_APP" "$DESTINATION"
+    case "${BEFORE_FINAL_MOVE_TEST_HOOK:-none}" in
+        none) ;;
+        create-collision) mkdir "$DESTINATION"; /bin/echo external > "$DESTINATION/external-evidence" ;;
+        *) echo "Invalid BEFORE_FINAL_MOVE_TEST_HOOK." >&2; false ;;
+    esac
+    if [[ -e "$DESTINATION" ]]; then
+        echo "The destination appeared during installation; it was preserved and registration was not attempted." >&2
+        false
+    fi
+    /bin/mv -n "$STAGED_APP" "$DESTINATION"
+    destination_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DESTINATION/Contents/Info.plist" 2>/dev/null || true)"
+    if [[ -e "$STAGED_APP" || "$destination_id" != "$source_id" ]] || \
+       ! /usr/bin/codesign --verify --deep --strict "$DESTINATION" >/dev/null 2>&1 || \
+       [[ "$(bundle_fingerprint "$DESTINATION")" != "$source_fingerprint" ]]; then
+        echo "The destination changed during installation; it was preserved and registration was not attempted." >&2
+        false
+    fi
     installed_app_ready=1
 fi
 
