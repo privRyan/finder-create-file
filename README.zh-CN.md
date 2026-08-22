@@ -36,9 +36,9 @@ make test
 make install
 ```
 
-构建产物位于 `dist/FinderCreateFile.app`。安装命令会复制到 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。安装器使用原子锁，并把待安装 App 和临时回滚副本都放在规范化后的安装目录内，保证关键移动发生在同一文件系统。命令失败或收到可捕获的 `INT`、`TERM`、`HUP` 时会恢复旧 App；注册全部成功后会先提交事务再清理，因此清理失败也不会撤销新版本。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
+构建产物位于 `dist/FinderCreateFile.app`。安装时会先在目标旁的唯一暂存目录中完整复制并校验 App，再放入 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。简单的原子锁会拒绝并发安装；可捕获信号只清理暂存目录和锁。若 App 已放置但注册失败，会保留完整 App；再次运行 `make install` 只重试注册，不重复复制。安装器不会猜测清理陈旧锁：确认没有安装进程后，请检查并手动移除准确的 `.FinderCreateFile.install.lock` 目录。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
 
-`SIGKILL`、断电或系统崩溃无法被脚本捕获。若留下 `.FinderCreateFile.install.lock`，下次安装会保守拒绝继续，而不会猜测应覆盖哪一份。请先检查该目录：`transaction/previous.app` 是升级前的 App，存在 `committed` 标记则表示注册已经完成、只是清理中断。仅在目标 App 不存在或已独立核验后才人工恢复旧 App，最后再手动移除陈旧锁。该策略用于避免在恢复状态不明确时覆盖任一副本。
+项目明确不支持自动原地升级：安装器绝不移动、备份、删除或覆盖已有 App。若已有 App 的 bundle ID 和签名 Code Directory 哈希均与源码构建一致，只重试注册；若属于不同构建，请先运行 `make uninstall`（旧 App 会移到废纸篓，可恢复），再运行 `make install`。
 
 在访达已打开文件夹的空白处右键：
 
