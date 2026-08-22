@@ -37,22 +37,42 @@ if [[ "$ASSUME_YES" != "1" ]]; then
     [[ "$answer" == "y" || "$answer" == "Y" ]] || exit 0
 fi
 
-trash_directory="${TRASH_DIR:-$HOME/.Trash}"
-trash_timestamp="${TRASH_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
+trash_directory="$HOME/.Trash"
+trash_timestamp="$(date +%Y%m%d-%H%M%S)"
+if [[ -n "${TRASH_DIR:-}" || -n "${TRASH_TIMESTAMP:-}" ]]; then
+    echo "Unsupported Trash override; use explicit FCF test mode for isolated tests." >&2
+    exit 64
+fi
+if [[ "${FCF_TEST_MODE:-0}" == "1" ]]; then
+    trash_directory="${FCF_TEST_TRASH_DIR:?FCF_TEST_TRASH_DIR is required in test mode}"
+    trash_timestamp="${FCF_TEST_TRASH_TIMESTAMP:-$trash_timestamp}"
+elif [[ -n "${FCF_TEST_TRASH_DIR:-}" || -n "${FCF_TEST_TRASH_TIMESTAMP:-}" ]]; then
+    echo "FCF test Trash variables require FCF_TEST_MODE=1." >&2
+    exit 64
+fi
 if [[ ! "$trash_timestamp" =~ ^[0-9]{8}-[0-9]{6}$ ]]; then
     echo "Invalid TRASH_TIMESTAMP: $trash_timestamp" >&2
     exit 64
 fi
 mkdir -p "$trash_directory"
+if [[ -L "$trash_directory" ]]; then
+    echo "Refusing a symlinked Trash directory: $trash_directory" >&2
+    exit 73
+fi
+
+is_official_app() {
+    local app="$1"
+    local appex="$app/Contents/PlugIns/FinderCreateFileFinderSync.appex"
+    [[ -d "$app" && ! -L "$app" && -d "$appex" && ! -L "$appex" ]] || return 1
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist" 2>/dev/null || true)" == "io.github.privRyan.FinderCreateFile" ]] || return 1
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$appex/Contents/Info.plist" 2>/dev/null || true)" == "$extension_id" ]] || return 1
+    /usr/bin/codesign --verify --deep --strict "$app" >/dev/null 2>&1
+}
 
 app_state="missing"
 extension_path="$DESTINATION/Contents/PlugIns/FinderCreateFileFinderSync.appex"
 if [[ -e "$DESTINATION" ]]; then
-    app_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DESTINATION/Contents/Info.plist" 2>/dev/null || true)"
-    installed_extension_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$extension_path/Contents/Info.plist" 2>/dev/null || true)"
-    if [[ ! -L "$DESTINATION" && ! -L "$extension_path" && \
-          "$app_id" == "io.github.privRyan.FinderCreateFile" && "$installed_extension_id" == "$extension_id" ]] && \
-       /usr/bin/codesign --verify --deep --strict "$DESTINATION" >/dev/null 2>&1; then
+    if is_official_app "$DESTINATION"; then
         app_state="official"
     else
         app_state="unexpected"
@@ -62,19 +82,8 @@ fi
 registered_app_path=""
 registered_extension_path=""
 if [[ "$app_state" == "official" ]]; then
-    trash_target="$trash_directory/FinderCreateFile.app"
-    if [[ -e "$trash_target" ]]; then
-        trash_base="$trash_directory/FinderCreateFile-$trash_timestamp"
-        trash_target="$trash_base.app"
-        trash_index=2
-        while [[ -e "$trash_target" ]]; do
-            trash_target="$trash_base-$trash_index.app"
-            ((trash_index += 1))
-        done
-    fi
-    /bin/mv "$DESTINATION" "$trash_target"
-    registered_app_path="$trash_target"
-    registered_extension_path="$trash_target/Contents/PlugIns/FinderCreateFileFinderSync.appex"
+    registered_app_path="$DESTINATION"
+    registered_extension_path="$extension_path"
 elif [[ "$app_state" == "unexpected" ]]; then
     echo "Refusing to move an app with unexpected bundle identifiers or signature." >&2
 fi
@@ -101,6 +110,21 @@ fi
 if [[ "$app_state" == "unexpected" ]]; then
     exit 73
 elif [[ "$app_state" == "official" ]]; then
+    if ! is_official_app "$DESTINATION"; then
+        echo "Refusing to move an app that changed during unregistration." >&2
+        exit 73
+    fi
+    trash_target="$trash_directory/FinderCreateFile.app"
+    if [[ -e "$trash_target" ]]; then
+        trash_base="$trash_directory/FinderCreateFile-$trash_timestamp"
+        trash_target="$trash_base.app"
+        trash_index=2
+        while [[ -e "$trash_target" ]]; do
+            trash_target="$trash_base-$trash_index.app"
+            ((trash_index += 1))
+        done
+    fi
+    /bin/mv "$DESTINATION" "$trash_target"
     echo "Moved app to Trash: $trash_target"
 else
     echo "FinderCreateFile is not installed at $DESTINATION"

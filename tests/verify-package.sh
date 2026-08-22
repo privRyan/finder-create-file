@@ -91,12 +91,12 @@ mkdir -p "$install_dir" "$trash_dir" "$support_dir"
 echo preserve > "$support_dir/settings"
 INSTALL_DIR="$install_dir" SKIP_REGISTRATION=1 "$package_directory/安装 FinderCreateFile.command" >/dev/null
 /usr/bin/codesign --verify --deep --strict "$install_dir/FinderCreateFile.app"
-INSTALL_DIR="$install_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_dir" TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_dir" FCF_TEST_TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 \
     "$package_directory/卸载 FinderCreateFile.command" --yes >/dev/null
 [[ ! -e "$install_dir/FinderCreateFile.app" && -f "$support_dir/settings" ]]
 INSTALL_DIR="$install_dir" SKIP_REGISTRATION=1 "$package_directory/安装 FinderCreateFile.command" >/dev/null
 INSTALL_DIR="$install_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_dir" LEGACY_DATA_DIRECTORY="$isolated_root/no-legacy" \
-    TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 "$package_directory/卸载 FinderCreateFile.command" --yes --purge >/dev/null
+    FCF_TEST_TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 "$package_directory/卸载 FinderCreateFile.command" --yes --purge >/dev/null
 [[ ! -e "$install_dir/FinderCreateFile.app" && ! -e "$support_dir" ]]
 
 echo "Deterministic universal package verification passed: $first_hash"
