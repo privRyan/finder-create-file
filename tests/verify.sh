@@ -35,8 +35,8 @@ app_archs="$(/usr/bin/lipo -archs "$APP/Contents/MacOS/FinderCreateFile")"
 extension_archs="$(/usr/bin/lipo -archs "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$app_archs"
 /usr/bin/grep -q 'arm64 x86_64\|x86_64 arm64' <<< "$extension_archs"
-/usr/bin/nm -m "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync" \
-    | /usr/bin/grep -q '_NSExtensionMain'
+extension_symbols="$(/usr/bin/nm -m "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync")"
+/usr/bin/grep -q '_NSExtensionMain' <<< "$extension_symbols"
 for executable in \
     "$APP/Contents/MacOS/FinderCreateFile" \
     "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/MacOS/FinderCreateFileFinderSync"; do
