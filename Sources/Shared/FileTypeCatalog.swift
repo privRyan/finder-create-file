@@ -37,6 +37,16 @@ enum FileTypeCatalog {
     static func type(id: String) -> BuiltInFileType? {
         additional.first { $0.id == id }
     }
+
+    static func menuTag(for id: String) -> Int? {
+        additional.firstIndex { $0.id == id }.map { $0 + 1 }
+    }
+
+    static func type(menuTag: Int) -> BuiltInFileType? {
+        let index = menuTag - 1
+        guard additional.indices.contains(index) else { return nil }
+        return additional[index]
+    }
 }
 
 enum FileTypeSelection {

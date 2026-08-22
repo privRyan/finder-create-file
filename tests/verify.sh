@@ -71,15 +71,24 @@ txt_line="$(/usr/bin/grep -n '文本文档 (.txt)' "$menu_source" | /usr/bin/cut
 md_line="$(/usr/bin/grep -n 'Markdown 文件 (.md)' "$menu_source" | /usr/bin/cut -d: -f1)"
 docx_line="$(/usr/bin/grep -n 'Word 文档 (.docx)' "$menu_source" | /usr/bin/cut -d: -f1)"
 xlsx_line="$(/usr/bin/grep -n 'Excel 工作簿 (.xlsx)' "$menu_source" | /usr/bin/cut -d: -f1)"
-first_separator_line="$(/usr/bin/grep -n 'submenu.addItem(.separator())' "$menu_source" | /usr/bin/head -1 | /usr/bin/cut -d: -f1)"
 manage_line="$(/usr/bin/grep -n '管理文件类型…' "$menu_source" | /usr/bin/head -1 | /usr/bin/cut -d: -f1)"
-(( txt_line < md_line && md_line < docx_line && docx_line < xlsx_line && xlsx_line < first_separator_line && first_separator_line < manage_line ))
+(( txt_line < md_line && md_line < docx_line && docx_line < xlsx_line && xlsx_line < manage_line ))
+if /usr/bin/grep -q 'submenu.addItem(.separator())\|representedObject' "$menu_source"; then
+    echo "Finder menu unexpectedly contains a separator or representedObject transport" >&2
+    exit 1
+fi
 /usr/bin/grep -q 'UserDefaults.standard.object' "$menu_source"
 /usr/bin/grep -q 'FileTypeSelection.storedValue' "$menu_source"
 /usr/bin/grep -q 'private static let delegate = AppDelegate()' "$PROJECT_DIR/Sources/App/AppMain.swift"
 /usr/bin/grep -q 'withApplicationAt: containingApp' "$menu_source"
-/usr/bin/grep -q 'appBundle.bundleIdentifier == String(extensionID.dropLast' "$menu_source"
-/usr/bin/grep -q 'isExecutableFile(atPath: executable.path)' "$menu_source"
+/usr/bin/grep -q 'ContainingAppLocator.locate' "$menu_source"
+if /usr/bin/grep -q 'Bundle(url: containingApp)\|Contents/Info.plist' "$menu_source"; then
+    echo "Finder extension unexpectedly reads the containing app bundle" >&2
+    exit 1
+fi
+/usr/bin/grep -q 'styleMask: \[.titled, .closable, .resizable\]' \
+    "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
+/usr/bin/grep -q 'NSScrollView()' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
 /usr/bin/grep -q 'func application(_ application: NSApplication, open urls: \[URL\])' \
     "$PROJECT_DIR/Sources/App/AppMain.swift"
 
@@ -105,10 +114,19 @@ fi
     -framework AppKit \
     "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
     "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
+    "$PROJECT_DIR/Sources/Shared/ContainingAppLocator.swift" \
     "$PROJECT_DIR/tests/CatalogTests.swift" \
     "$PROJECT_DIR/.build/ExclusiveCreate-test.o" \
     -o "$PROJECT_DIR/.build/catalog-tests"
 "$PROJECT_DIR/.build/catalog-tests"
+
+/usr/bin/swiftc -swift-version 5 -target "$(uname -m)-apple-macos13.0" \
+    -framework AppKit \
+    "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
+    "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift" \
+    "$PROJECT_DIR/tests/SettingsWindowTests.swift" \
+    -o "$PROJECT_DIR/.build/settings-window-tests"
+"$PROJECT_DIR/.build/settings-window-tests"
 
 install_test_dir="$PROJECT_DIR/.build/install-test"
 rm -rf "$install_test_dir"

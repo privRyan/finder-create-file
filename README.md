@@ -21,7 +21,7 @@ Finder Create File adds a **New File** submenu to the background context menu in
 - Apple Command Line Tools (`xcode-select --install`)
 - Bash, Swift compiler, and standard tools included with macOS
 
-This repository does **not** distribute a Developer ID-signed or notarized executable. Build it locally from reviewed source. The default build uses an ad-hoc signature, which is suitable for local installation but not a substitute for Apple notarization.
+This repository does **not** distribute a Developer ID-signed or notarized executable. Build it locally from reviewed source. The default source installation targets `~/Applications` and uses an ad-hoc signature; it is not a mature notarized drag-and-drop DMG.
 
 The Finder Sync extension monitors `/` only so Finder offers the context menu everywhere. The app accepts creation requests only for existing directories resolved inside the current user's home directory or `/Volumes`, shows the resolved destination before creation, and uses exclusive filesystem creation to prevent overwrites.
 
@@ -48,10 +48,8 @@ The menu appears when right-clicking the background of an open Finder folder:
 ├── Markdown 文件 (.md)
 ├── Word 文档 (.docx)
 ├── Excel 工作簿 (.xlsx)
-├── ─────────────
 ├── JSON 文件 (.json)      # when enabled
 ├── XML 文件 (.xml)        # when enabled
-├── ─────────────
 └── 管理文件类型…
 ```
 
@@ -74,7 +72,7 @@ VERSION=1.1.0 BUILD_NUMBER=2 BUNDLE_ID_PREFIX=io.github.example make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 
-A Developer ID build still needs notarization before public binary distribution. The project intentionally does not pretend that ad-hoc signing bypasses Gatekeeper.
+A polished drag-to-`/Applications` distribution requires a Developer ID signature and Apple notarization. A Developer ID build still needs notarization before public binary distribution; the project intentionally does not pretend that ad-hoc signing bypasses Gatekeeper.
 
 ## Template provenance
 
@@ -84,7 +82,7 @@ The application icon is drawn from original vector paths at build time. Runtime 
 
 ## Security and limitations
 
-See [SECURITY.md](SECURITY.md). The extension stores its versioned selection in the standard preferences for `io.github.privRyan.FinderCreateFile.FinderSync`; only fixed catalog IDs are stored. Unknown, duplicate, damaged, or out-of-version values are ignored, and catalog ordering always wins. The four defaults always remain consecutive; enabled extras appear after the first separator, and the management command stays last. Finder Sync is the macOS extension mechanism that can add a true background context menu; macOS may require the user to enable it manually. Network shares mounted outside `/Volumes` are intentionally rejected. UI text is currently Chinese.
+See [SECURITY.md](SECURITY.md). The extension stores its versioned selection in the standard preferences for `io.github.privRyan.FinderCreateFile.FinderSync`; only fixed catalog IDs are stored. Unknown, duplicate, damaged, or out-of-version values are ignored, and catalog ordering always wins. All menu entries are continuous, with the four defaults first and the management command last. The sandboxed extension locates its containing app only through the compile-time fixed `FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex` structure, rejecting non-standardized or symlinked paths; it does not read files outside its extension sandbox for validation. Finder Sync is the macOS extension mechanism that can add a true background context menu; macOS may require the user to enable it manually. Network shares mounted outside `/Volumes` are intentionally rejected. UI text is currently Chinese.
 
 ## License
 

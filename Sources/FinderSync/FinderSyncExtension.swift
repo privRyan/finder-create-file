@@ -1,7 +1,12 @@
 import AppKit
 import FinderSync
+import OSLog
+
+private let extensionLogger = Logger(subsystem: "io.github.privRyan.FinderCreateFile.FinderSync", category: "OpenRequest")
 
 final class FinderSyncExtension: FIFinderSync {
+    private var settingsWindowController: FileTypeSettingsWindowController?
+
     override init() {
         super.init()
         FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
@@ -19,8 +24,6 @@ final class FinderSyncExtension: FIFinderSync {
         submenu.addItem(item(title: "Markdown 文件 (.md)", symbol: "doc.text", action: #selector(createMarkdown)))
         submenu.addItem(item(title: "Word 文档 (.docx)", symbol: "doc.richtext", action: #selector(createWord)))
         submenu.addItem(item(title: "Excel 工作簿 (.xlsx)", symbol: "tablecells", action: #selector(createExcel)))
-        submenu.addItem(.separator())
-
         let enabledTypes = FileTypeSelection.enabledTypes(
             from: UserDefaults.standard.object(forKey: FileTypeSelection.defaultsKey)
         )
@@ -30,10 +33,10 @@ final class FinderSyncExtension: FIFinderSync {
                 symbol: type.symbol,
                 action: #selector(createAdditional(_:))
             )
-            additional.representedObject = type.id
+            guard let menuTag = FileTypeCatalog.menuTag(for: type.id) else { continue }
+            additional.tag = menuTag
             submenu.addItem(additional)
         }
-        if !enabledTypes.isEmpty { submenu.addItem(.separator()) }
         submenu.addItem(item(title: "管理文件类型…", symbol: "gearshape", action: #selector(manageFileTypes)))
 
         root.submenu = submenu
@@ -54,9 +57,8 @@ final class FinderSyncExtension: FIFinderSync {
     @objc private func createExcel() { create(type: "xlsx") }
 
     @objc private func createAdditional(_ sender: NSMenuItem) {
-        guard let typeID = sender.representedObject as? String,
-              FileTypeCatalog.type(id: typeID) != nil else { return }
-        open(operation: "additional", typeID: typeID)
+        guard let type = FileTypeCatalog.type(menuTag: sender.tag) else { return }
+        open(operation: "additional", typeID: type.id)
     }
 
     @objc private func manageFileTypes() {
@@ -79,25 +81,21 @@ final class FinderSyncExtension: FIFinderSync {
         queryItems.append(URLQueryItem(name: "path", value: directory.path))
         components.queryItems = queryItems
         guard let url = components.url else { return }
-        let containingApp = Bundle.main.bundleURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .resolvingSymlinksInPath()
-        guard containingApp.pathExtension == "app",
-              let extensionID = Bundle.main.bundleIdentifier,
-              extensionID.hasSuffix(".FinderSync"),
-              let appBundle = Bundle(url: containingApp),
-              appBundle.bundleIdentifier == String(extensionID.dropLast(".FinderSync".count)),
-              let executable = appBundle.executableURL,
-              FileManager.default.isExecutableFile(atPath: executable.path) else { return }
+        guard let containingApp = ContainingAppLocator.locate(from: Bundle.main.bundleURL) else {
+            extensionLogger.error("Containing app structure validation failed")
+            return
+        }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         NSWorkspace.shared.open(
             [url],
             withApplicationAt: containingApp,
             configuration: configuration
-        )
+        ) { _, error in
+            if let error {
+                extensionLogger.error("Unable to open containing app, errorCode=\((error as NSError).code)")
+            }
+        }
     }
 
     private func presentFileTypeSettings() {
@@ -106,39 +104,26 @@ final class FinderSyncExtension: FIFinderSync {
                 from: UserDefaults.standard.object(forKey: FileTypeSelection.defaultsKey)
             ).map(\.id)
         )
-        let checkboxes = FileTypeCatalog.additional.map { type -> (BuiltInFileType, NSButton) in
-            let button = NSButton(
-                checkboxWithTitle: "\(type.displayName) (.\(type.fileExtension))",
-                target: nil,
-                action: nil
-            )
-            button.state = enabledIDs.contains(type.id) ? .on : .off
-            return (type, button)
+        guard settingsWindowController == nil else {
+            settingsWindowController?.showWindow(nil)
+            settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+            return
         }
-        let left = NSStackView(views: checkboxes.prefix(5).map(\.1))
-        let right = NSStackView(views: checkboxes.suffix(5).map(\.1))
-        for column in [left, right] {
-            column.orientation = .vertical
-            column.alignment = .leading
-            column.spacing = 7
-        }
-        let columns = NSStackView(views: [left, right])
-        columns.spacing = 28
-
-        let alert = NSAlert()
-        alert.messageText = "管理文件类型"
-        alert.informativeText = "默认的 TXT、Markdown、Word 和 Excel 始终保留。勾选的额外类型会直接显示在访达右键菜单中。"
-        alert.accessoryView = columns
-        alert.addButton(withTitle: "保存")
-        alert.addButton(withTitle: "取消")
-        alert.window.level = .floating
-        NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-
-        let selectedIDs = Set(checkboxes.filter { $0.1.state == .on }.map { $0.0.id })
-        UserDefaults.standard.set(
-            FileTypeSelection.storedValue(enabledIDs: selectedIDs),
-            forKey: FileTypeSelection.defaultsKey
+        let controller = FileTypeSettingsWindowController(
+            types: FileTypeCatalog.additional,
+            enabledIDs: enabledIDs,
+            saveHandler: { selectedIDs in
+                UserDefaults.standard.set(
+                    FileTypeSelection.storedValue(enabledIDs: selectedIDs),
+                    forKey: FileTypeSelection.defaultsKey
+                )
+            },
+            closeHandler: { [weak self] in self?.settingsWindowController = nil }
         )
+        settingsWindowController = controller
+        controller.showWindow(nil)
+        controller.window?.center()
+        controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

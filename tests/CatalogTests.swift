@@ -19,6 +19,14 @@ struct CatalogTests {
             precondition(normalizedExtension == type.fileExtension)
         }
         precondition(FileTypeCatalog.type(id: "missing") == nil)
+        for (index, type) in catalog.enumerated() {
+            let tag = index + 1
+            precondition(FileTypeCatalog.menuTag(for: type.id) == tag)
+            precondition(FileTypeCatalog.type(menuTag: tag)?.id == type.id)
+        }
+        precondition(FileTypeCatalog.menuTag(for: "missing") == nil)
+        precondition(FileTypeCatalog.type(menuTag: 0) == nil)
+        precondition(FileTypeCatalog.type(menuTag: catalog.count + 1) == nil)
         precondition(String(data: FileTypeCatalog.type(id: "json")!.strategy.data, encoding: .utf8) == "{}\n")
         precondition(String(data: FileTypeCatalog.type(id: "xml")!.strategy.data, encoding: .utf8)?.contains("<root/>") == true)
         precondition(String(data: FileTypeCatalog.type(id: "html")!.strategy.data, encoding: .utf8)?.contains("<!doctype html>") == true)
@@ -44,6 +52,36 @@ struct CatalogTests {
                 == ["json", "csv"]
         )
         defaults.removePersistentDomain(forName: suiteName)
+
+        let validExtension = URL(fileURLWithPath:
+            "/Applications/FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex"
+        )
+        precondition(ContainingAppLocator.locate(from: validExtension)?.path == "/Applications/FinderCreateFile.app")
+        precondition(ContainingAppLocator.locate(from: URL(string: "https://example.test/extension")!) == nil)
+        precondition(ContainingAppLocator.locate(from: URL(fileURLWithPath:
+            "/Applications/Other.app/Contents/PlugIns/FinderCreateFileFinderSync.appex"
+        )) == nil)
+        precondition(ContainingAppLocator.locate(from: URL(fileURLWithPath:
+            "/Applications/FinderCreateFile.app/Contents/Extensions/FinderCreateFileFinderSync.appex"
+        )) == nil)
+        precondition(ContainingAppLocator.locate(from: URL(fileURLWithPath:
+            "/Applications/FinderCreateFile.app/Contents/PlugIns/Other.appex"
+        )) == nil)
+
+        let locatorRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("finder-create-file-locator-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: locatorRoot) }
+        let realApp = locatorRoot.appendingPathComponent("real/FinderCreateFile.app", isDirectory: true)
+        let realExtension = realApp.appendingPathComponent(
+            "Contents/PlugIns/FinderCreateFileFinderSync.appex", isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: realExtension, withIntermediateDirectories: true)
+        let linkedApp = locatorRoot.appendingPathComponent("FinderCreateFile.app", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: linkedApp, withDestinationURL: realApp)
+        let linkedExtension = linkedApp.appendingPathComponent(
+            "Contents/PlugIns/FinderCreateFileFinderSync.appex", isDirectory: true
+        )
+        precondition(ContainingAppLocator.locate(from: linkedExtension) == nil)
 
         let fixed = AppRequestParser.parse("findercreatefile://create?type=txt&path=%2FUsers%2Ftester")
         precondition(fixed == .createFixed(type: "txt", path: "/Users/tester"))

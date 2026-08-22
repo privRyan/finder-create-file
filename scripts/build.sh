@@ -64,6 +64,8 @@ for arch in $ARCHS; do
         -module-name FinderCreateFileFinderSync \
         -framework AppKit -framework FinderSync \
         "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
+        "$PROJECT_DIR/Sources/Shared/ContainingAppLocator.swift" \
+        "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift" \
         "$PROJECT_DIR/Sources/FinderSync/FinderSyncExtension.swift" \
         -Xlinker -e -Xlinker _NSExtensionMain \
         -o "$BUILD_DIR/FinderCreateFileFinderSync-$arch"
