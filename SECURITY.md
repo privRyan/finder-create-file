@@ -20,6 +20,6 @@ Please use GitHub's private vulnerability reporting for [privRyan/finder-create-
 
 ## Release and uninstall policy
 
-The downloadable universal app is ad-hoc signed and is not Developer ID signed or Apple-notarized. Its installer neither disables Gatekeeper nor removes quarantine metadata; macOS may require an explicit first-open approval. A future polished binary distribution would require a controlled Developer ID build, hardened runtime, notarization, stapling, and published checksums.
+The downloadable universal app is ad-hoc signed and is not Developer ID signed or Apple-notarized. Each package build emits a matching `.sha256` file for publication and verification. Its installer neither disables Gatekeeper nor removes quarantine metadata; macOS may require an explicit first-open approval. A future polished binary distribution would additionally require a controlled Developer ID build, hardened runtime, notarization, and stapling.
 
 Normal uninstall disables the official extension ID, unregisters available bundle paths, terminates the app and extension processes, refreshes Finder, and moves the verified app to Trash while preserving settings. `--purge` also attempts to move the official settings container to Trash and checks for remaining data. System-protected empty container metadata may remain. Unrecognized legacy data is reported and preserved for manual review; the public script never guesses that unrelated prototypes, Automator services, or user documents belong to this app.

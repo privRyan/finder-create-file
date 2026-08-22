@@ -4,7 +4,7 @@ Finder normally creates folders but has no built-in command for making a new emp
 
 ## Install
 
-1. Unzip the download.
+1. Verify the ZIP against the matching published `.sha256` file, then unzip it.
 2. Control-click **安装 FinderCreateFile.command** and choose **Open**. Because this build is ad-hoc signed and not notarized, macOS may require this explicit first-open approval or approval in **System Settings → Privacy & Security**.
 3. Open **System Settings → General → Login Items & Extensions → Finder** and enable **Finder 新建文件菜单** if it is not already enabled.
 4. In Finder, Control-click the background of a folder and choose **新建文件**.

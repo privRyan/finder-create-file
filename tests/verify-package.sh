@@ -5,12 +5,15 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="1.1.0"
 PACKAGE_NAME="FinderCreateFile-v$VERSION-macos-universal"
 ZIP_PATH="$PROJECT_DIR/dist/$PACKAGE_NAME.zip"
+CHECKSUM_PATH="$PROJECT_DIR/dist/$PACKAGE_NAME.sha256"
 
 VERSION="$VERSION" BUILD_NUMBER=3 "$PROJECT_DIR/scripts/package.sh"
 first_hash="$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')"
 VERSION="$VERSION" BUILD_NUMBER=3 "$PROJECT_DIR/scripts/package.sh"
 second_hash="$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')"
 [[ "$first_hash" == "$second_hash" ]]
+[[ "$(/bin/cat "$CHECKSUM_PATH")" == "$second_hash  $PACKAGE_NAME.zip" ]]
+(cd "$PROJECT_DIR/dist" && /usr/bin/shasum -a 256 -c "$PACKAGE_NAME.sha256")
 
 /usr/bin/unzip -tq "$ZIP_PATH"
 entries="$(/usr/bin/unzip -Z1 "$ZIP_PATH")"
@@ -88,11 +91,11 @@ mkdir -p "$install_dir" "$trash_dir" "$support_dir"
 echo preserve > "$support_dir/settings"
 INSTALL_DIR="$install_dir" SKIP_REGISTRATION=1 "$package_directory/安装 FinderCreateFile.command" >/dev/null
 /usr/bin/codesign --verify --deep --strict "$install_dir/FinderCreateFile.app"
-INSTALL_DIR="$install_dir" SUPPORT_DIRECTORY="$support_dir" TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_dir" TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 \
     "$package_directory/卸载 FinderCreateFile.command" --yes >/dev/null
 [[ ! -e "$install_dir/FinderCreateFile.app" && -f "$support_dir/settings" ]]
 INSTALL_DIR="$install_dir" SKIP_REGISTRATION=1 "$package_directory/安装 FinderCreateFile.command" >/dev/null
-INSTALL_DIR="$install_dir" SUPPORT_DIRECTORY="$support_dir" LEGACY_DATA_DIRECTORY="$isolated_root/no-legacy" \
+INSTALL_DIR="$install_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_dir" LEGACY_DATA_DIRECTORY="$isolated_root/no-legacy" \
     TRASH_DIR="$trash_dir" SKIP_REGISTRATION=1 "$package_directory/卸载 FinderCreateFile.command" --yes --purge >/dev/null
 [[ ! -e "$install_dir/FinderCreateFile.app" && ! -e "$support_dir" ]]
 

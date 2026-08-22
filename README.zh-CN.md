@@ -18,7 +18,7 @@
 
 ## 下载、安装与使用
 
-1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.1.0-macos-universal.zip`。
+1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.1.0-macos-universal.zip` 及同名 `.sha256` 文件，并核对发布的 SHA-256。
 2. 解压后按住 Control 点击 **安装 FinderCreateFile.command**，选择“打开”。
 3. 如有需要，到“系统设置 → 通用 → 登录项与扩展 → Finder”开启“Finder 新建文件菜单”。
 4. 在访达文件夹空白处右键选择“新建文件”；通过“管理文件类型…”启用可选格式。

@@ -284,12 +284,12 @@ support_test_dir="$PROJECT_DIR/.build/support-test"
 trash_test_dir="$PROJECT_DIR/.build/trash-test"
 mkdir -p "$support_test_dir"
 echo '{"version":1,"enabledTypeIDs":["json"]}' > "$support_test_dir/settings.json"
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes
 [[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
 [[ -f "$support_test_dir/settings.json" ]]
 INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge
 [[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
 [[ ! -e "$support_test_dir" ]]
@@ -304,7 +304,7 @@ mkdir -p "$uninstall_tool_dir"
 for tool in pluginkit lsregister pkill killall; do
     /bin/ln -s "$PROJECT_DIR/tests/record-command.sh" "$uninstall_tool_dir/$tool"
 done
-missing_output="$(INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" \
+missing_output="$(INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
     TRASH_DIR="$trash_test_dir" UNINSTALL_COMMAND_LOG="$uninstall_command_log" \
     PLUGIN_KIT="$uninstall_tool_dir/pluginkit" LSREGISTER="$uninstall_tool_dir/lsregister" \
     PROCESS_KILLER="$uninstall_tool_dir/pkill" FINDER_RESTARTER="$uninstall_tool_dir/killall" \
@@ -322,17 +322,38 @@ fi
 # Available official bundle paths are explicitly unregistered before the app is moved.
 INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
 : > "$uninstall_command_log"
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
     TRASH_DIR="$trash_test_dir" UNINSTALL_COMMAND_LOG="$uninstall_command_log" \
     PLUGIN_KIT="$uninstall_tool_dir/pluginkit" LSREGISTER="$uninstall_tool_dir/lsregister" \
     PROCESS_KILLER="$uninstall_tool_dir/pkill" FINDER_RESTARTER="$uninstall_tool_dir/killall" \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes >/dev/null
-/usr/bin/grep -F -q "pluginkit -r $install_test_dir/FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex" "$uninstall_command_log"
-/usr/bin/grep -F -q "lsregister -u $install_test_dir/FinderCreateFile.app" "$uninstall_command_log"
+/usr/bin/grep -E -q "^pluginkit -r $trash_test_dir/FinderCreateFile.*\\.app/Contents/PlugIns/FinderCreateFileFinderSync\\.appex$" "$uninstall_command_log"
+/usr/bin/grep -E -q "^lsregister -u $trash_test_dir/FinderCreateFile.*\\.app$" "$uninstall_command_log"
 [[ ! -e "$install_test_dir/FinderCreateFile.app" ]]
 
+# A generic inherited environment variable can never redirect purge scope.
+ambiguous_support_dir="$PROJECT_DIR/.build/ambiguous-support"
+mkdir -p "$ambiguous_support_dir"
+echo preserve > "$ambiguous_support_dir/user-file"
+if INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$ambiguous_support_dir" \
+    TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null 2>&1; then
+    echo "Uninstaller accepted ambiguous SUPPORT_DIRECTORY purge scope" >&2
+    exit 1
+fi
+[[ -f "$ambiguous_support_dir/user-file" ]]
+ambiguous_support_link="$PROJECT_DIR/.build/ambiguous-support-link"
+/bin/ln -s "$ambiguous_support_dir" "$ambiguous_support_link"
+if INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$ambiguous_support_link" \
+    TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
+    "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null 2>&1; then
+    echo "Uninstaller accepted a symlinked settings container" >&2
+    exit 1
+fi
+[[ -f "$ambiguous_support_dir/user-file" ]]
+
 # Best-effort registration failures are visible warnings, not silent success.
-failure_output="$(INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_test_dir" \
+failure_output="$(INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$support_test_dir" \
     TRASH_DIR="$trash_test_dir" UNINSTALL_COMMAND_LOG="$uninstall_command_log" FAIL_TOOL_NAME=pluginkit \
     PLUGIN_KIT="$uninstall_tool_dir/pluginkit" LSREGISTER="$uninstall_tool_dir/lsregister" \
     PROCESS_KILLER="$uninstall_tool_dir/pkill" FINDER_RESTARTER="$uninstall_tool_dir/killall" \
@@ -343,7 +364,7 @@ failure_output="$(INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$support_te
 unknown_data_dir="$PROJECT_DIR/.build/unknown-legacy-data"
 mkdir -p "$unknown_data_dir"
 echo preserve > "$unknown_data_dir/user-file"
-unknown_output="$(INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$PROJECT_DIR/.build/no-settings" \
+unknown_output="$(INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$PROJECT_DIR/.build/no-settings" \
     LEGACY_DATA_DIRECTORY="$unknown_data_dir" TRASH_DIR="$trash_test_dir" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge 2>&1)"
 [[ -f "$unknown_data_dir/user-file" ]]
@@ -361,12 +382,13 @@ mkdir -p \
     "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-2" \
     "$collision_support_dir"
 INSTALL_DIR="$install_test_dir" SKIP_REGISTRATION=1 "$PROJECT_DIR/scripts/install.sh" "$APP" >/dev/null
-echo 'collision-app-marker' > "$install_test_dir/FinderCreateFile.app/collision-app-marker"
+echo 'collision-app-marker' > "$install_test_dir/FinderCreateFile.app/Contents/Resources/collision-app-marker"
+/usr/bin/codesign --force --deep --sign - "$install_test_dir/FinderCreateFile.app" >/dev/null
 echo 'collision-settings-marker' > "$collision_support_dir/collision-settings-marker"
-INSTALL_DIR="$install_test_dir" SUPPORT_DIRECTORY="$collision_support_dir" TRASH_DIR="$collision_trash_dir" \
+INSTALL_DIR="$install_test_dir" FCF_TEST_MODE=1 FCF_TEST_SUPPORT_DIRECTORY="$collision_support_dir" TRASH_DIR="$collision_trash_dir" \
     TRASH_TIMESTAMP="$collision_timestamp" SKIP_REGISTRATION=1 \
     "$PROJECT_DIR/scripts/uninstall.sh" --yes --purge >/dev/null
-[[ -f "$collision_trash_dir/FinderCreateFile-$collision_timestamp-3.app/collision-app-marker" ]]
+[[ -f "$collision_trash_dir/FinderCreateFile-$collision_timestamp-3.app/Contents/Resources/collision-app-marker" ]]
 [[ -f "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-3/collision-settings-marker" ]]
 [[ ! -e "$collision_trash_dir/FinderCreateFile-$collision_timestamp-2.app/FinderCreateFile.app" ]]
 [[ ! -e "$collision_trash_dir/FinderCreateFile-Settings-$collision_timestamp-2/support-collision-test" ]]
