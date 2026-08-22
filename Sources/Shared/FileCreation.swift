@@ -54,7 +54,7 @@ enum AppRequestParser {
 }
 
 enum FileCreator {
-    static let supportedTypes = ["txt", "md", "docx", "xlsx"]
+    static let supportedTypes = ["txt", "md", "docx", "xlsx", "pptx"]
 
     static func normalizedTargetDirectory(_ path: String) throws -> URL {
         let directory = URL(fileURLWithPath: path, isDirectory: true)

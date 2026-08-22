@@ -30,27 +30,41 @@ if [[ ! "$trash_timestamp" =~ ^[0-9]{8}-[0-9]{6}$ ]]; then
 fi
 mkdir -p "$trash_directory"
 
-if [[ -d "$DESTINATION" ]]; then
+app_state="missing"
+extension_path="$DESTINATION/Contents/PlugIns/FinderCreateFileFinderSync.appex"
+if [[ -e "$DESTINATION" ]]; then
     app_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DESTINATION/Contents/Info.plist" 2>/dev/null || true)"
-    extension_path="$DESTINATION/Contents/PlugIns/FinderCreateFileFinderSync.appex"
-    extension_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$extension_path/Contents/Info.plist" 2>/dev/null || true)"
-    if [[ -z "$app_id" || "$extension_id" != "$app_id.FinderSync" ]]; then
-        echo "Refusing to uninstall an app with unexpected bundle identifiers." >&2
-        exit 73
+    installed_extension_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$extension_path/Contents/Info.plist" 2>/dev/null || true)"
+    if [[ "$app_id" == "io.github.privRyan.FinderCreateFile" && "$installed_extension_id" == "$extension_id" ]]; then
+        app_state="official"
+    else
+        app_state="unexpected"
     fi
-    if [[ "${SKIP_REGISTRATION:-0}" != "1" ]]; then
-        if ! /usr/bin/pluginkit -e ignore -i "$extension_id" 2>/dev/null; then
-            echo "Warning: could not disable Finder extension $extension_id" >&2
-        fi
-        if ! /usr/bin/pluginkit -r "$extension_path" 2>/dev/null; then
-            echo "Warning: could not remove Finder extension registration." >&2
-        fi
-        LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-        if ! "$LSREGISTER" -u "$DESTINATION" 2>/dev/null; then
-            echo "Warning: could not remove LaunchServices registration." >&2
-        fi
-        /usr/bin/pkill -x FinderCreateFile 2>/dev/null || true
+fi
+
+if [[ "${SKIP_REGISTRATION:-0}" != "1" ]]; then
+    PLUGIN_KIT="${PLUGIN_KIT:-/usr/bin/pluginkit}"
+    LSREGISTER="${LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister}"
+    PROCESS_KILLER="${PROCESS_KILLER:-/usr/bin/pkill}"
+    FINDER_RESTARTER="${FINDER_RESTARTER:-/usr/bin/killall}"
+    if ! "$PLUGIN_KIT" -e ignore -i "$extension_id" 2>/dev/null; then
+        echo "Warning: could not disable Finder extension $extension_id" >&2
     fi
+    if [[ -d "$extension_path" ]] && ! "$PLUGIN_KIT" -r "$extension_path" 2>/dev/null; then
+        echo "Warning: could not remove Finder extension registration." >&2
+    fi
+    if [[ "$app_state" == "official" ]] && ! "$LSREGISTER" -u "$DESTINATION" 2>/dev/null; then
+        echo "Warning: could not remove LaunchServices registration." >&2
+    fi
+    "$PROCESS_KILLER" -x FinderCreateFile 2>/dev/null || true
+    "$PROCESS_KILLER" -x FinderCreateFileFinderSync 2>/dev/null || true
+    "$FINDER_RESTARTER" Finder 2>/dev/null || true
+fi
+
+if [[ "$app_state" == "unexpected" ]]; then
+    echo "Refusing to move an app with unexpected bundle identifiers." >&2
+    exit 73
+elif [[ "$app_state" == "official" ]]; then
     trash_target="$trash_directory/FinderCreateFile.app"
     if [[ -e "$trash_target" ]]; then
         trash_base="$trash_directory/FinderCreateFile-$trash_timestamp"
@@ -62,7 +76,6 @@ if [[ -d "$DESTINATION" ]]; then
         done
     fi
     /bin/mv "$DESTINATION" "$trash_target"
-    [[ "${SKIP_REGISTRATION:-0}" == "1" ]] || /usr/bin/killall Finder 2>/dev/null || true
     echo "Moved app to Trash: $trash_target"
 else
     echo "FinderCreateFile is not installed at $DESTINATION"
@@ -74,6 +87,7 @@ else
     support_directory="$HOME/Library/Containers/$extension_id"
 fi
 
+purge_incomplete=0
 if [[ "$PURGE" == "1" && -d "$support_directory" ]]; then
     if [[ -z "$SUPPORT_DIRECTORY_OVERRIDE" ]]; then
         /usr/bin/defaults delete "$extension_id" 2>/dev/null || true
@@ -85,8 +99,31 @@ if [[ "$PURGE" == "1" && -d "$support_directory" ]]; then
         support_target="$support_base-$support_index"
         ((support_index += 1))
     done
-    /bin/mv "$support_directory" "$support_target"
-    echo "Moved settings to Trash: $support_target"
+    if /bin/mv "$support_directory" "$support_target"; then
+        echo "Moved settings to Trash: $support_target"
+    else
+        echo "Warning: could not move the settings container to Trash: $support_directory" >&2
+        purge_incomplete=1
+    fi
 elif [[ -d "$support_directory" ]]; then
     echo "Preserved settings: $support_directory (use --purge to remove them)"
 fi
+
+legacy_data_directory="${LEGACY_DATA_DIRECTORY:-$HOME/Library/Application Support/FinderCreateFile}"
+if [[ "$PURGE" == "1" && -d "$legacy_data_directory" ]] && \
+   [[ -n "$(/usr/bin/find "$legacy_data_directory" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+    echo "Warning: unrecognized legacy data was preserved at $legacy_data_directory; review it manually." >&2
+fi
+
+if [[ "$PURGE" == "1" && -e "$support_directory" ]]; then
+    remaining="$(/usr/bin/find "$support_directory" -mindepth 1 \
+        ! -name '.com.apple.containermanagerd.metadata.plist' -print -quit 2>/dev/null || true)"
+    if [[ -n "$remaining" ]]; then
+        echo "Warning: purge is incomplete; settings or data remain at $support_directory" >&2
+        purge_incomplete=1
+    else
+        echo "Warning: only system-managed empty container metadata may remain at $support_directory" >&2
+    fi
+fi
+
+[[ "$purge_incomplete" == "0" ]] || exit 74

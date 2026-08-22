@@ -2,34 +2,40 @@
 
 [English](README.md)
 
-Finder Create File 会在 macOS 访达文件夹空白处的右键菜单中加入“新建文件”子菜单，可创建 TXT、Markdown、格式有效的空白 Word/Excel 文档，以及从内置白名单启用的开发和文本文件。
+访达默认只能新建文件夹，没有内置的“新建空文件”命令。Finder Create File 解决的就是这个缺口：它会在文件夹空白处的右键菜单中加入“新建文件”，可创建 TXT、Markdown、格式有效的空白 Word/Excel/PowerPoint 文档，以及从白名单启用的开发和文本文件。
 
 ## 功能
 
-- `.txt`、`.md`、`.docx`、`.xlsx` 四个菜单项连续显示，无多余分隔线
+- `.txt`、`.md`、`.docx`、`.xlsx`、`.pptx` 五个默认菜单项连续显示，无多余分隔线
 - 额外类型白名单包含 JSON、YAML（只保留 `.yaml`）、HTML、CSS、JavaScript、TypeScript、Python、Shell、XML、CSV；用户只能勾选或取消，不能自定义后缀或导入模板
 - 菜单和文件名输入窗口均显示对应的文件类型图标
 - 自动补充扩展名；同名时自动追加数字
 - 使用排他方式创建文件，并发请求也绝不覆盖已有文件
-- Word/Excel 模板内嵌在 App 资源中；扩展只保存带版本号的内置类型 ID 列表
+- Word/Excel/PowerPoint 模板内嵌在 App 资源中；扩展只保存带版本号的内置类型 ID 列表
+- 设置窗口会立即置前，可缩放、滚动，并在打开期间通过 Command-Tab 切回
 - 同时支持 Apple 芯片和 Intel Mac 的 Universal 2 构建
 - 不联网、无统计分析
 
-1.0.1 版只在扩展的设置窗口打开期间临时显示正常的应用切换条目，因此窗口会来到前台并可通过 Command-Tab 切回；关闭后恢复后台 accessory 行为。可滚动的类型列表同时改为固定内边距的顶端对齐。
+## 下载、安装与使用
 
-## 系统要求与信任说明
+1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.1.0-macos-universal.zip`。
+2. 解压后按住 Control 点击 **安装 FinderCreateFile.command**，选择“打开”。
+3. 如有需要，到“系统设置 → 通用 → 登录项与扩展 → Finder”开启“Finder 新建文件菜单”。
+4. 在访达文件夹空白处右键选择“新建文件”；通过“管理文件类型…”启用可选格式。
 
-- macOS 13 或更高版本
-- Apple Command Line Tools（运行 `xcode-select --install` 安装）
-- macOS 自带的 Bash、Swift 编译器和系统工具
+预编译包和源码构建均要求 macOS 13 或更高版本，主程序和扩展都是 Universal 2，同时包含 Apple 芯片（`arm64`）和 Intel（`x86_64`）代码。当前版本已在 Apple 芯片 Mac 的真实访达中测试；Intel 支持和 macOS 13 最低版本经过构建及静态门禁验证，但不声称已做对应实机测试。
 
-本仓库**不分发**经过 Developer ID 签名和 Apple 公证的可执行文件，请审核源码后在自己的 Mac 上构建。当前源码安装默认放入 `~/Applications` 并使用临时签名；它不是成熟、已公证、可直接拖入 `/Applications` 的 DMG。
+安装、运行和创建文件不需要 Command Line Tools，也不需要 Microsoft Office；只有打开、编辑 `.docx`、`.xlsx`、`.pptx` 时才需要 Office 或其他兼容应用。本项目不添加登录项，访达会按需加载扩展。
+
+下载包使用临时签名，不是 Developer ID 签名，也未经过 Apple 公证。首次运行时 macOS 可能要求“Control 点击 → 打开”或到“隐私与安全性”中允许。安装脚本不会移除 quarantine 属性，也不会关闭 Gatekeeper。
+
+## 从源码构建
+
+只有源码构建需要 Apple Command Line Tools（`xcode-select --install`，包含 Swift 和 Clang）；日常运行不需要。
 
 Finder Sync 扩展监听 `/`，只是为了让访达在所有位置提供右键菜单。主程序只接受已规范化且真实存在的用户目录或 `/Volumes` 内目录；创建前会显示最终目标路径；底层用排他创建保证不覆盖文件。
 
 临时签名的沙盒扩展无法可靠使用 App Group：[本机最小实验](docs/APP-GROUP-PROBE.md)在沙盒初始化时失败，因为临时签名没有有效 Team ID/代码身份。本项目不需要跨进程共享设置：Finder 扩展在自己的标准沙盒偏好中保存内置类型选择，并自行把已启用项展开到菜单。扩展只向主程序传固定类型 ID 和目标路径，主程序会再次校验两者，再显示创建窗口。
-
-## 构建、验证和安装
 
 ```sh
 git clone https://github.com/privRyan/finder-create-file.git
@@ -38,7 +44,7 @@ make test
 make install
 ```
 
-构建产物位于 `dist/FinderCreateFile.app`。安装时会先在目标旁的唯一暂存目录中完整复制并校验 App，再放入 `~/Applications`、注册并启用 Finder 扩展，然后重启访达。简单的原子锁会拒绝并发安装；可捕获信号只清理暂存目录和锁。若 App 已放置但注册失败，会保留完整 App；再次运行 `make install` 只重试注册，不重复复制。安装器不会猜测清理陈旧锁：确认没有安装进程后，请检查并手动移除准确的 `.FinderCreateFile.install.lock` 目录。如果菜单仍未出现，请到“系统设置 → 通用 → 登录项与扩展 → Finder”手动开启“Finder 新建文件菜单”。
+源码构建产物位于 `dist/FinderCreateFile.app`。安装时先在 `~/Applications` 旁暂存并校验 App，再注册、启用扩展并刷新访达。原子锁拒绝并发安装；可捕获信号会清理暂存目录和锁。注册失败后完整 App 会保留，再次安装只重试注册。安装器不会猜测清理陈旧锁；确认没有安装进程后，才应检查并手动移除准确的 `.FinderCreateFile.install.lock`。
 
 项目明确不支持自动原地升级：安装器绝不移动、备份、删除或覆盖已有 App。若已有 App 的 bundle ID、签名和完整 bundle 指纹均与源码构建一致（包含所有架构及内嵌扩展），只重试注册；若属于不同构建，请先运行 `make uninstall`（旧 App 会移到废纸篓，可恢复），再运行 `make install`。
 
@@ -50,6 +56,7 @@ make install
 ├── Markdown 文件 (.md)
 ├── Word 文档 (.docx)
 ├── Excel 工作簿 (.xlsx)
+├── PowerPoint 演示文稿 (.pptx)
 ├── JSON 文件 (.json)      # 勾选后显示
 ├── XML 文件 (.xml)        # 勾选后显示
 └── 管理文件类型…
@@ -61,16 +68,16 @@ make install
 
 ```sh
 make build       # 构建 App
-make package     # 生成仅供本地使用的临时签名 ZIP，不应冒充已公证发布包
-make uninstall   # 将 App 移到废纸篓，默认保留设置
-./scripts/uninstall.sh --purge  # 同时把设置移到废纸篓
+make package     # 构建临时签名的 Universal 2 分发 ZIP
+make uninstall   # 注销扩展并将 App 移到废纸篓，默认保留设置
+./scripts/uninstall.sh --purge  # 同时把扩展设置容器移到废纸篓
 make clean       # 清理生成产物
 ```
 
 需要时可覆盖构建参数：
 
 ```sh
-VERSION=1.1.0 BUILD_NUMBER=2 BUNDLE_ID_PREFIX=io.github.example make build
+VERSION=1.1.0 BUILD_NUMBER=3 BUNDLE_ID_PREFIX=io.github.example make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 
@@ -78,13 +85,15 @@ SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 
 ## 模板来源
 
-构建过程会从 `Resources/OfficeTemplates/` 中精简、可读的 OOXML 源文件可重复生成空白模板，并将 `blank.docx` 和 `blank.xlsx` 内嵌到 App 的 `Contents/Resources/Templates/`。项目不再分发 Microsoft 的图稿或模板文件。
+构建过程会从 `Resources/OfficeTemplates/` 中可审计的 OOXML 源文件可重复生成 `blank.docx`、`blank.xlsx` 和一页 16:9、无可见对象的 `blank.pptx`，再内嵌到 App。项目不分发 Microsoft 图稿或模板文件。
 
 App 图标由项目中的原创矢量路径在构建时绘制。运行时菜单和对话框图标使用 macOS 系统符号，不会将这些符号打包或再次分发。
 
 ## 安全与限制
 
-详见 [SECURITY.md](SECURITY.md)。Finder 扩展把带版本号的选择保存在 `io.github.privRyan.FinderCreateFile.FinderSync` 标准偏好中，只记录固定类型 ID；未知、重复、损坏或版本不兼容的值都会被忽略，并始终按内置目录顺序显示。全部菜单项连续排列，四个默认项位于最前，“管理文件类型…”始终在最底部。沙盒扩展只根据编译期固定的 `FinderCreateFile.app/Contents/PlugIns/FinderCreateFileFinderSync.appex` 层级定位主程序，并拒绝非规范化路径或符号链接；它不会越过扩展沙盒读取父 App 文件来验证。Finder Sync 是 macOS 实现真正文件夹空白处右键菜单的扩展机制，因此系统可能要求用户手动启用。挂载在 `/Volumes` 以外的网络位置会被主动拒绝。目前界面文字为中文。
+详见 [SECURITY.md](SECURITY.md)。扩展只保存带版本号的固定类型 ID；未知、重复、损坏或版本不兼容的值都会被忽略。五个默认项位于最前，“管理文件类型…”始终在最底部。沙盒扩展会校验固定的父 App 层级；Finder Sync 可能需要用户手动启用。挂载在 `/Volumes` 以外的网络位置会被拒绝。目前界面文字为中文。
+
+普通卸载会注销扩展、把 App 移到废纸篓并保留已选类型；`--purge` 还会尝试把官方设置容器移到废纸篓。系统管理的空容器元数据可能仍保留；来源不明的旧数据只会提示并保留，脚本不会猜测删除。
 
 ## 许可证
 

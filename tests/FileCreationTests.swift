@@ -30,7 +30,8 @@ struct FileCreationTests {
         let md = try FileCreator.create(rawName: "README.md", type: "md", directory: normalized, template: nil)
         let docx = try FileCreator.create(rawName: "document", type: "docx", directory: normalized, template: templates.appendingPathComponent("blank.docx"))
         let xlsx = try FileCreator.create(rawName: "workbook", type: "xlsx", directory: normalized, template: templates.appendingPathComponent("blank.xlsx"))
-        for url in [txt, md, docx, xlsx] { precondition(FileManager.default.fileExists(atPath: url.path)) }
+        let pptx = try FileCreator.create(rawName: "presentation", type: "pptx", directory: normalized, template: templates.appendingPathComponent("blank.pptx"))
+        for url in [txt, md, docx, xlsx, pptx] { precondition(FileManager.default.fileExists(atPath: url.path)) }
 
         let duplicate = try FileCreator.create(rawName: "sample", type: "txt", directory: normalized, template: nil)
         precondition(duplicate.lastPathComponent == "sample 2.txt")
