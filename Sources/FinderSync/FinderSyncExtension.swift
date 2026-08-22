@@ -105,8 +105,9 @@ final class FinderSyncExtension: FIFinderSync {
             ).map(\.id)
         )
         guard settingsWindowController == nil else {
-            settingsWindowController?.showWindow(nil)
-            settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+            if settingsWindowController?.present() != true {
+                extensionLogger.error("Unable to switch to regular activation policy for settings")
+            }
             return
         }
         let controller = FileTypeSettingsWindowController(
@@ -121,9 +122,9 @@ final class FinderSyncExtension: FIFinderSync {
             closeHandler: { [weak self] in self?.settingsWindowController = nil }
         )
         settingsWindowController = controller
-        controller.showWindow(nil)
-        controller.window?.center()
-        controller.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if !controller.present() {
+            extensionLogger.error("Unable to switch to regular activation policy for settings")
+            settingsWindowController = nil
+        }
     }
 }

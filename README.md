@@ -15,6 +15,8 @@ Finder Create File adds a **New File** submenu to the background context menu in
 - Universal 2 binaries for Apple silicon and Intel Macs
 - No network access or analytics
 
+Version 1.0.1 temporarily gives the extension's settings window a normal app presence while it is open. The window therefore comes to the front and can be reached with Command-Tab; closing it restores accessory/background behavior. The scrollable type list is top-aligned with a consistent inset.
+
 ## Requirements and trust model
 
 - macOS 13 or later
