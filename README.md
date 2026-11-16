@@ -13,19 +13,20 @@ Finder can create folders but has no built-in command for creating a new empty f
 - Exclusive file creation: existing files are never overwritten, including concurrent requests
 - Word/Excel/PowerPoint templates bundled inside the app; the extension stores only a versioned list of enabled built-in type IDs
 - A frontmost, resizable, scrollable settings window that remains reachable through Command-Tab while open
+- A skippable startup guide when the login item or Finder extension is missing, with an app tile that can be dragged to Login Items
 - Universal 2 binaries for Apple silicon and Intel Macs
 - No network access or analytics
 
 ## Download, install, and use
 
-1. Download `FinderCreateFile-v1.1.0-macos-universal.zip` and its matching `.sha256` file from [Releases](https://github.com/privRyan/finder-create-file/releases), then verify the published SHA-256 value.
+1. Download `FinderCreateFile-v1.2.0-macos-universal.zip` and its matching `.sha256` file from [Releases](https://github.com/privRyan/finder-create-file/releases), then verify the published SHA-256 value.
 2. Unzip it, Control-click **安装 FinderCreateFile.command**, and choose **Open**.
-3. If needed, enable **Finder 新建文件菜单** under **System Settings → General → Login Items & Extensions → Finder**.
+3. The installer opens the app. If setup appears, click **Enable at Login** to register the app, or click **Open System Settings** and drag the app tile into **Open at Login**. Enable the Finder Create File extension under Finder extensions. **Skip** leaves these choices unchanged and the app checks again on its next direct launch.
 4. Control-click the background of a Finder folder, choose **新建文件**, or choose **管理文件类型…** to enable optional formats.
 
 The prebuilt package and source build both target macOS 13 or later and contain Universal 2 executables for Apple silicon (`arm64`) and Intel (`x86_64`). The current release is tested in real Finder on Apple silicon; Intel support and the macOS 13 deployment target are build and static-verification gates, not claims of real-device testing.
 
-Running, installing, and creating files require neither Command Line Tools nor Microsoft Office. Opening or editing `.docx`, `.xlsx`, or `.pptx` requires Microsoft Office or another compatible application. The project adds no Login Item; Finder loads the extension when needed.
+Running, installing, and creating files require neither Command Line Tools nor Microsoft Office. Opening or editing `.docx`, `.xlsx`, or `.pptx` requires Microsoft Office or another compatible application. The user adds the Login Item in System Settings; the Finder extension can work without it, but the main app does not proactively start at login.
 
 The downloadable app is ad-hoc signed, not Developer ID signed or Apple-notarized. On first open, macOS may require Control-click → Open or approval in **Privacy & Security**. The installer does not remove quarantine attributes or disable Gatekeeper.
 
@@ -77,7 +78,7 @@ make clean       # remove generated artifacts
 Version, build number, and signing identity can be overridden when needed:
 
 ```sh
-VERSION=1.1.0 BUILD_NUMBER=3 make build
+VERSION=1.2.0 BUILD_NUMBER=4 make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 

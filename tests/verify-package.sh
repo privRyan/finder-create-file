@@ -2,14 +2,14 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="1.1.0"
+VERSION="1.2.0"
 PACKAGE_NAME="FinderCreateFile-v$VERSION-macos-universal"
 ZIP_PATH="$PROJECT_DIR/dist/$PACKAGE_NAME.zip"
 CHECKSUM_PATH="$PROJECT_DIR/dist/$PACKAGE_NAME.sha256"
 
-VERSION="$VERSION" BUILD_NUMBER=3 "$PROJECT_DIR/scripts/package.sh"
+VERSION="$VERSION" BUILD_NUMBER=4 "$PROJECT_DIR/scripts/package.sh"
 first_hash="$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')"
-VERSION="$VERSION" BUILD_NUMBER=3 "$PROJECT_DIR/scripts/package.sh"
+VERSION="$VERSION" BUILD_NUMBER=4 "$PROJECT_DIR/scripts/package.sh"
 second_hash="$(/usr/bin/shasum -a 256 "$ZIP_PATH" | /usr/bin/awk '{print $1}')"
 [[ "$first_hash" == "$second_hash" ]]
 [[ "$(/bin/cat "$CHECKSUM_PATH")" == "$second_hash  $PACKAGE_NAME.zip" ]]
@@ -43,9 +43,9 @@ expected_top_level="$(/usr/bin/printf '%s\n' \
 
 /usr/bin/codesign --verify --deep --strict "$app"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" == "$VERSION" ]]
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" == "3" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" == "4" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$appex/Contents/Info.plist")" == "$VERSION" ]]
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$appex/Contents/Info.plist")" == "3" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$appex/Contents/Info.plist")" == "4" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$appex/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile.FinderSync" ]]
 for executable in \

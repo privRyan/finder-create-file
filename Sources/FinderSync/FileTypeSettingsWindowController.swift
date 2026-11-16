@@ -32,7 +32,7 @@ final class FileTypeSettingsWindowController: NSWindowController, NSWindowDelega
             backing: .buffered,
             defer: false
         )
-        window.title = "管理文件类型"
+        window.title = L10n.text("管理文件类型", "Manage File Types")
         window.minSize = Self.minimumSize
         window.isReleasedWhenClosed = false
         super.init(window: window)
@@ -48,11 +48,11 @@ final class FileTypeSettingsWindowController: NSWindowController, NSWindowDelega
         root.translatesAutoresizingMaskIntoConstraints = false
         window.contentView = root
 
-        let heading = NSTextField(labelWithString: "管理文件类型")
+        let heading = NSTextField(labelWithString: L10n.text("管理文件类型", "Manage File Types"))
         heading.font = .systemFont(ofSize: 20, weight: .semibold)
 
         let explanation = NSTextField(wrappingLabelWithString:
-            "默认的 TXT、Markdown、Word 和 Excel 始终保留。勾选的额外类型会直接显示在访达右键菜单中。"
+            L10n.text("默认的 TXT、Markdown、Word、Excel 和 PowerPoint 始终保留。勾选的额外类型会直接显示在访达右键菜单中。", "TXT, Markdown, Word, Excel, and PowerPoint always remain available. Selected additional types appear in the Finder context menu.")
         )
         explanation.maximumNumberOfLines = 0
         explanation.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -88,9 +88,9 @@ final class FileTypeSettingsWindowController: NSWindowController, NSWindowDelega
         scrollView.drawsBackground = false
         scrollView.documentView = documentView
 
-        let cancel = NSButton(title: "取消", target: self, action: #selector(cancel))
+        let cancel = NSButton(title: L10n.text("取消", "Cancel"), target: self, action: #selector(cancel))
         cancel.keyEquivalent = "\u{1b}"
-        let save = NSButton(title: "保存", target: self, action: #selector(save))
+        let save = NSButton(title: L10n.text("保存", "Save"), target: self, action: #selector(save))
         save.keyEquivalent = "\r"
         save.bezelStyle = .rounded
         let buttons = NSStackView(views: [cancel, save])

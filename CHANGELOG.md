@@ -1,5 +1,16 @@
 # Changelog / 更新日志
 
+## 1.2.0 (build 4)
+
+- Check the login item and Finder extension when the app starts without a file-creation request; show a skippable setup window for missing settings.
+- Open Login Items & Extensions from the setup window and let users drag the installed app into “Open at Login”.
+- Launch the installed app after the installer registers the Finder extension.
+- Follow the system's preferred language for app and Finder extension UI (Chinese or English; English fallback).
+- 启动时检查登录项和访达扩展，缺失时显示可跳过的设置引导。
+- 在引导窗口打开“登录项与扩展”，并支持将已安装 App 拖入“登录时打开”。
+- 安装器注册访达扩展后启动 App，以显示首次设置引导。
+- 应用和访达扩展界面跟随系统首选语言（中文或英文，其余语言回退英文）。
+
 ## 1.1.0 (build 3)
 
 - Add PowerPoint (`.pptx`) as the fifth fixed default type, backed by a valid one-slide 16:9 OOXML template.

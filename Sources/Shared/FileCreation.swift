@@ -13,13 +13,13 @@ enum FileCreationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidDirectory:
-            return "目标位置不存在或不是文件夹。"
+            return L10n.text("目标位置不存在或不是文件夹。", "The destination does not exist or is not a folder.")
         case .directoryOutsideAllowedLocations:
-            return "只能在用户目录或 /Volumes 下创建文件。"
+            return L10n.text("只能在用户目录或 /Volumes 下创建文件。", "Files can only be created in your home folder or under /Volumes.")
         case .invalidName:
-            return "文件名不能为空，也不能包含 / 或 :。"
+            return L10n.text("文件名不能为空，也不能包含 / 或 :。", "The filename cannot be empty or contain / or :.")
         case .tooManyConflicts:
-            return "同名文件过多，无法生成可用名称。"
+            return L10n.text("同名文件过多，无法生成可用名称。", "Too many files have this name; no available name could be found.")
         }
     }
 }

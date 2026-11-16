@@ -16,15 +16,15 @@ final class FinderSyncExtension: FIFinderSync {
         guard menuKind == .contextualMenuForContainer else { return nil }
 
         let menu = NSMenu(title: "")
-        let root = NSMenuItem(title: "新建文件", action: nil, keyEquivalent: "")
+        let root = NSMenuItem(title: L10n.text("新建文件", "New File"), action: nil, keyEquivalent: "")
         root.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
 
-        let submenu = NSMenu(title: "新建文件")
-        submenu.addItem(item(title: "文本文档 (.txt)", symbol: "doc.plaintext", action: #selector(createTXT)))
-        submenu.addItem(item(title: "Markdown 文件 (.md)", symbol: "doc.text", action: #selector(createMarkdown)))
-        submenu.addItem(item(title: "Word 文档 (.docx)", symbol: "doc.richtext", action: #selector(createWord)))
-        submenu.addItem(item(title: "Excel 工作簿 (.xlsx)", symbol: "tablecells", action: #selector(createExcel)))
-        submenu.addItem(item(title: "PowerPoint 演示文稿 (.pptx)", symbol: "rectangle.on.rectangle", action: #selector(createPowerPoint)))
+        let submenu = NSMenu(title: L10n.text("新建文件", "New File"))
+        submenu.addItem(item(title: L10n.text("文本文档 (.txt)", "Text Document (.txt)"), symbol: "doc.plaintext", action: #selector(createTXT)))
+        submenu.addItem(item(title: L10n.text("Markdown 文件 (.md)", "Markdown File (.md)"), symbol: "doc.text", action: #selector(createMarkdown)))
+        submenu.addItem(item(title: L10n.text("Word 文档 (.docx)", "Word Document (.docx)"), symbol: "doc.richtext", action: #selector(createWord)))
+        submenu.addItem(item(title: L10n.text("Excel 工作簿 (.xlsx)", "Excel Workbook (.xlsx)"), symbol: "tablecells", action: #selector(createExcel)))
+        submenu.addItem(item(title: L10n.text("PowerPoint 演示文稿 (.pptx)", "PowerPoint Presentation (.pptx)"), symbol: "rectangle.on.rectangle", action: #selector(createPowerPoint)))
         let enabledTypes = FileTypeSelection.enabledTypes(
             from: UserDefaults.standard.object(forKey: FileTypeSelection.defaultsKey)
         )
@@ -38,7 +38,7 @@ final class FinderSyncExtension: FIFinderSync {
             additional.tag = menuTag
             submenu.addItem(additional)
         }
-        submenu.addItem(item(title: "管理文件类型…", symbol: "gearshape", action: #selector(manageFileTypes)))
+        submenu.addItem(item(title: L10n.text("管理文件类型…", "Manage File Types…"), symbol: "gearshape", action: #selector(manageFileTypes)))
 
         root.submenu = submenu
         menu.addItem(root)

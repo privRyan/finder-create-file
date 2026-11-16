@@ -110,6 +110,29 @@ fi
 if [[ "$app_state" == "unexpected" ]]; then
     exit 73
 elif [[ "$app_state" == "official" ]]; then
+    if [[ "${FCF_TEST_MODE:-0}" != "1" ]]; then
+        app_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DESTINATION/Contents/Info.plist" 2>/dev/null || true)"
+        if [[ "$app_build" =~ ^[0-9]+$ ]] && (( app_build >= 4 )); then
+            if ! "$DESTINATION/Contents/MacOS/FinderCreateFile" --unregister-login-item; then
+                echo "Could not unregister the app-managed Login Item." >&2
+            fi
+        fi
+        if ! /usr/bin/osascript - "$DESTINATION" <<'OSA'
+on run arguments
+    set appPath to item 1 of arguments
+    tell application "System Events"
+        repeat with entry in every login item
+            if (name of entry is "FinderCreateFile") and (path of entry is appPath) then
+                delete entry
+            end if
+        end repeat
+    end tell
+end run
+OSA
+        then
+            echo "Could not remove the Login Item; remove FinderCreateFile in System Settings > General > Login Items & Extensions." >&2
+        fi
+    fi
     if ! is_official_app "$DESTINATION"; then
         echo "Refusing to move an app that changed during unregistration." >&2
         exit 73

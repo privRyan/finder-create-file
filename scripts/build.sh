@@ -7,8 +7,8 @@ DIST_DIR="$PROJECT_DIR/dist"
 APP_NAME="FinderCreateFile"
 APP="$DIST_DIR/$APP_NAME.app"
 APPEX="$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex"
-VERSION="${VERSION:-1.1.0}"
-BUILD_NUMBER="${BUILD_NUMBER:-3}"
+VERSION="${VERSION:-1.2.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-4}"
 OFFICIAL_APP_ID="io.github.privRyan.FinderCreateFile"
 OFFICIAL_EXTENSION_ID="io.github.privRyan.FinderCreateFile.FinderSync"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
@@ -33,10 +33,13 @@ mkdir -p \
     "$APP/Contents/MacOS" \
     "$APP/Contents/Helpers" \
     "$APP/Contents/Resources/Templates" \
+    "$APPEX/Contents/Resources" \
     "$APPEX/Contents/MacOS"
 
 cp "$PROJECT_DIR/Config/AppInfo.plist" "$APP/Contents/Info.plist"
 cp "$PROJECT_DIR/Config/ExtensionInfo.plist" "$APPEX/Contents/Info.plist"
+/usr/bin/ditto "$PROJECT_DIR/Resources/AppLocalization" "$APP/Contents/Resources"
+/usr/bin/ditto "$PROJECT_DIR/Resources/ExtensionLocalization" "$APPEX/Contents/Resources"
 
 /usr/bin/plutil -replace CFBundleIdentifier -string "$OFFICIAL_APP_ID" "$APP/Contents/Info.plist"
 /usr/bin/plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
@@ -54,10 +57,11 @@ for arch in $ARCHS; do
         "$PROJECT_DIR/Sources/Shared/ExclusiveCreate.c" \
         -o "$BUILD_DIR/ExclusiveCreate-$arch.o"
     /usr/bin/swiftc -O -whole-module-optimization -target "$target" \
-        -framework AppKit \
+        -framework AppKit -framework ServiceManagement \
         "$PROJECT_DIR/Sources/Shared/FileCreation.swift" \
         "$PROJECT_DIR/Sources/Shared/FileTypeCatalog.swift" \
         "$PROJECT_DIR/Sources/App/AppMain.swift" \
+        "$PROJECT_DIR/Sources/App/SetupWindowController.swift" \
         "$BUILD_DIR/ExclusiveCreate-$arch.o" \
         -o "$BUILD_DIR/FinderCreateFile-$arch"
     app_binaries+=("$BUILD_DIR/FinderCreateFile-$arch")

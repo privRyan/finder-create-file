@@ -113,8 +113,8 @@ fi
 /usr/bin/grep -q 'NSApp.setActivationPolicy(.regular)' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
 /usr/bin/grep -q 'NSApp.setActivationPolicy(.accessory)' "$PROJECT_DIR/Sources/FinderSync/FileTypeSettingsWindowController.swift"
 for plist in "$PROJECT_DIR/Config/AppInfo.plist" "$PROJECT_DIR/Config/ExtensionInfo.plist"; do
-    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" == "1.1.0" ]]
-    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" == "3" ]]
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")" == "1.2.0" ]]
+    [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")" == "4" ]]
 done
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/PlugIns/FinderCreateFileFinderSync.appex/Contents/Info.plist")" == "io.github.privRyan.FinderCreateFile.FinderSync" ]]
