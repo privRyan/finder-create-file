@@ -35,8 +35,8 @@ struct SettingsWindowTests {
         let topInset = firstCheckbox.convert(firstCheckbox.bounds, to: documentView).minY
         precondition((12...20).contains(topInset))
         precondition(checkboxes.count == 10)
-        precondition(buttons.contains { $0.title == "保存" })
-        precondition(buttons.contains { $0.title == "取消" })
+        precondition(buttons.contains { $0.title == L10n.text("保存", "Save") })
+        precondition(buttons.contains { $0.title == L10n.text("取消", "Cancel") })
         precondition(saved == nil)
         print("Settings window layout tests passed.")
     }
