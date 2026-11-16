@@ -51,7 +51,8 @@ final class AppDragView: NSView, NSDraggingSource {
                     start.y - convert(event.locationInWindow, from: nil).y) > 4 else { return }
         dragStart = nil
         let item = NSDraggingItem(pasteboardWriter: Bundle.main.bundleURL as NSURL)
-        item.setDraggingFrame(bounds, contents: NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
+        item.setDraggingFrame(NSRect(x: 12, y: 10, width: 42, height: 42),
+                              contents: NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
         beginDraggingSession(with: [item], event: event, source: self)
     }
 

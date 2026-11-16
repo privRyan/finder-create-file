@@ -1,5 +1,12 @@
 # Changelog / 更新日志
 
+## 1.2.1 (build 5)
+
+- Restore standard Cut, Copy, Paste, and Select All keyboard shortcuts in filename dialogs.
+- Keep the app icon square while dragging it to Login Items, and remove matching login items cleanly during uninstall.
+- 恢复文件名输入窗口中的剪切、复制、粘贴与全选快捷键。
+- 修复拖拽登录项时图标被拉伸，以及卸载时清理登录项的误报。
+
 ## 1.2.0 (build 4)
 
 - Check the login item and Finder extension when the app starts without a file-creation request; show a skippable setup window for missing settings.

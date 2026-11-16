@@ -19,7 +19,7 @@
 
 ## 下载、安装与使用
 
-1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.2.0-macos-universal.zip` 及同名 `.sha256` 文件，并核对发布的 SHA-256。
+1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.2.1-macos-universal.zip` 及同名 `.sha256` 文件，并核对发布的 SHA-256。
 2. 解压后按住 Control 点击 **安装 FinderCreateFile.command**，选择“打开”。
 3. 安装器会启动 App。若出现引导窗口，可点“启用登录自启”让应用添加登录项，也可点“打开系统设置”，将窗口中的 App 图标拖到“登录时打开”；再到“访达”扩展中开启“Finder 新建文件菜单”。可以点“跳过”，下次直接启动 App 时会再次检查。
 4. 在访达文件夹空白处右键选择“新建文件”；通过“管理文件类型…”启用可选格式。
@@ -78,7 +78,7 @@ make clean       # 清理生成产物
 需要时可覆盖版本、构建号和签名身份：
 
 ```sh
-VERSION=1.2.0 BUILD_NUMBER=4 make build
+VERSION=1.2.1 BUILD_NUMBER=5 make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 

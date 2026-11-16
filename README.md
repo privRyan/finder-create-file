@@ -19,7 +19,7 @@ Finder can create folders but has no built-in command for creating a new empty f
 
 ## Download, install, and use
 
-1. Download `FinderCreateFile-v1.2.0-macos-universal.zip` and its matching `.sha256` file from [Releases](https://github.com/privRyan/finder-create-file/releases), then verify the published SHA-256 value.
+1. Download `FinderCreateFile-v1.2.1-macos-universal.zip` and its matching `.sha256` file from [Releases](https://github.com/privRyan/finder-create-file/releases), then verify the published SHA-256 value.
 2. Unzip it, Control-click **安装 FinderCreateFile.command**, and choose **Open**.
 3. The installer opens the app. If setup appears, click **Enable at Login** to register the app, or click **Open System Settings** and drag the app tile into **Open at Login**. Enable the Finder Create File extension under Finder extensions. **Skip** leaves these choices unchanged and the app checks again on its next direct launch.
 4. Control-click the background of a Finder folder, choose **新建文件**, or choose **管理文件类型…** to enable optional formats.
@@ -78,7 +78,7 @@ make clean       # remove generated artifacts
 Version, build number, and signing identity can be overridden when needed:
 
 ```sh
-VERSION=1.2.0 BUILD_NUMBER=4 make build
+VERSION=1.2.1 BUILD_NUMBER=5 make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 

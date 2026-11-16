@@ -148,7 +148,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct FinderCreateFileApplication {
     private static let delegate = AppDelegate()
 
+    private static func installEditMenu(on application: NSApplication) {
+        let menuBar = NSMenu()
+        let edit = NSMenuItem(title: L10n.text("编辑", "Edit"), action: nil, keyEquivalent: "")
+        let items = NSMenu(title: edit.title)
+        items.addItem(withTitle: L10n.text("剪切", "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        items.addItem(withTitle: L10n.text("复制", "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        items.addItem(withTitle: L10n.text("粘贴", "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        items.addItem(withTitle: L10n.text("全选", "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.submenu = items
+        menuBar.addItem(edit)
+        application.mainMenu = menuBar
+    }
+
     static func main() {
+        if CommandLine.arguments.dropFirst() == ["--register-login-item"] {
+            do { try SMAppService.mainApp.register() }
+            catch {
+                fputs("Could not add login item: \(error.localizedDescription)\n", stderr)
+                exit(1)
+            }
+            return
+        }
         if CommandLine.arguments.dropFirst() == ["--unregister-login-item"] {
             if SMAppService.mainApp.status == .notRegistered { return }
             do { try SMAppService.mainApp.unregister() }
@@ -160,6 +181,7 @@ struct FinderCreateFileApplication {
         }
         let application = NSApplication.shared
         application.delegate = delegate
+        installEditMenu(on: application)
         application.setActivationPolicy(.accessory)
         application.run()
     }
