@@ -121,7 +121,9 @@ elif [[ "$app_state" == "official" ]]; then
 on run arguments
     set appPath to item 1 of arguments
     tell application "System Events"
-        repeat with entry in every login item
+        set itemCount to count of every login item
+        repeat with itemIndex from itemCount to 1 by -1
+            set entry to login item itemIndex
             if (name of entry is "FinderCreateFile") and (path of entry is appPath) then
                 delete entry
             end if
