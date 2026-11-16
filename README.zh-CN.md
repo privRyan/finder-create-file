@@ -13,19 +13,20 @@
 - 使用排他方式创建文件，并发请求也绝不覆盖已有文件
 - Word/Excel/PowerPoint 模板内嵌在 App 资源中；扩展只保存带版本号的内置类型 ID 列表
 - 设置窗口会立即置前，可缩放、滚动，并在打开期间通过 Command-Tab 切回
+- 启动时检查登录项与 Finder 扩展；缺失时显示可跳过的引导窗口，并提供可拖到系统登录项的 App 图标
 - 同时支持 Apple 芯片和 Intel Mac 的 Universal 2 构建
 - 不联网、无统计分析
 
 ## 下载、安装与使用
 
-1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.1.0-macos-universal.zip` 及同名 `.sha256` 文件，并核对发布的 SHA-256。
+1. 从 [Releases](https://github.com/privRyan/finder-create-file/releases) 下载 `FinderCreateFile-v1.2.0-macos-universal.zip` 及同名 `.sha256` 文件，并核对发布的 SHA-256。
 2. 解压后按住 Control 点击 **安装 FinderCreateFile.command**，选择“打开”。
-3. 如有需要，到“系统设置 → 通用 → 登录项与扩展 → Finder”开启“Finder 新建文件菜单”。
+3. 安装器会启动 App。若出现引导窗口，可点“启用登录自启”让应用添加登录项，也可点“打开系统设置”，将窗口中的 App 图标拖到“登录时打开”；再到“访达”扩展中开启“Finder 新建文件菜单”。可以点“跳过”，下次直接启动 App 时会再次检查。
 4. 在访达文件夹空白处右键选择“新建文件”；通过“管理文件类型…”启用可选格式。
 
 预编译包和源码构建均要求 macOS 13 或更高版本，主程序和扩展都是 Universal 2，同时包含 Apple 芯片（`arm64`）和 Intel（`x86_64`）代码。当前版本已在 Apple 芯片 Mac 的真实访达中测试；Intel 支持和 macOS 13 最低版本经过构建及静态门禁验证，但不声称已做对应实机测试。
 
-安装、运行和创建文件不需要 Command Line Tools，也不需要 Microsoft Office；只有打开、编辑 `.docx`、`.xlsx`、`.pptx` 时才需要 Office 或其他兼容应用。本项目不添加登录项，访达会按需加载扩展。
+安装、运行和创建文件不需要 Command Line Tools，也不需要 Microsoft Office；只有打开、编辑 `.docx`、`.xlsx`、`.pptx` 时才需要 Office 或其他兼容应用。登录项由用户在系统设置中添加；不添加时仍可使用 Finder 扩展，但不会随登录主动启动主程序。
 
 下载包使用临时签名，不是 Developer ID 签名，也未经过 Apple 公证。首次运行时 macOS 可能要求“Control 点击 → 打开”或到“隐私与安全性”中允许。安装脚本不会移除 quarantine 属性，也不会关闭 Gatekeeper。
 
@@ -77,7 +78,7 @@ make clean       # 清理生成产物
 需要时可覆盖版本、构建号和签名身份：
 
 ```sh
-VERSION=1.1.0 BUILD_NUMBER=3 make build
+VERSION=1.2.0 BUILD_NUMBER=4 make build
 SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" make build
 ```
 

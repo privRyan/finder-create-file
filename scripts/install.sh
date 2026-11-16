@@ -166,6 +166,9 @@ else
     "$PLUGIN_KIT" -a "$DESTINATION/Contents/PlugIns/FinderCreateFileFinderSync.appex"
     "$PLUGIN_KIT" -e use -i "$extension_id"
     "$FINDER_RESTARTER" Finder 2>/dev/null || true
+    if [[ "${FCF_TEST_MODE:-0}" != "1" && ( "$INSTALL_DIR" == "$HOME/Applications" || "$INSTALL_DIR" == "/Applications" ) ]]; then
+        /usr/bin/open -g "$DESTINATION"
+    fi
 fi
 
 trap - ERR INT TERM HUP
